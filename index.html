@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+<title>身心靈健康追蹤</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,400&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+:root{
+  --cream:#F5EFE6;--parchment:#EDE3D4;--parchment2:#E4D8C8;
+  --sage:#7A9E7E;--sage-l:#B4CFBA;--sage-d:#4A7A50;
+  --rose:#C08070;--rose-l:#E8C4B8;
+  --amber:#C89A50;--amber-l:#EDD9A3;
+  --lavender:#8C7FA8;--lav-l:#C8C0DC;
+  --ink:#3A3028;--muted:#8A7A6A;
+  --card:rgba(255,255,255,0.72);
+  --border:rgba(180,160,140,0.3);
+  --shadow:0 4px 24px rgba(80,60,40,0.08);
+  --shadow-md:0 8px 32px rgba(80,60,40,0.14);
+}
+html,body{height:100%;background:var(--cream);}
+body{font-family:'DM Sans',sans-serif;color:var(--ink);overscroll-behavior:none;}
+.serif{font-family:'Cormorant Garamond',serif;}
+
+/* APP SHELL */
+#app{max-width:480px;margin:0 auto;min-height:100vh;
+  background:linear-gradient(160deg,#F5EFE6 0%,#EDE3D4 55%,#E4D8C8 100%);
+  position:relative;overflow-x:hidden;}
+.blob1{position:fixed;top:-50px;right:-50px;width:180px;height:180px;border-radius:50%;
+  background:rgba(122,158,126,.1);pointer-events:none;z-index:0;}
+.blob2{position:fixed;bottom:90px;left:-30px;width:140px;height:140px;border-radius:50%;
+  background:rgba(192,128,112,.08);pointer-events:none;z-index:0;}
+
+/* VIEWS */
+.view{display:none;padding:20px 16px 110px;position:relative;z-index:1;animation:fadeUp .35s ease;}
+.view.active{display:block;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:translateY(0);}}
+
+/* GLASS CARD */
+.glass{background:var(--card);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  border:1px solid var(--border);border-radius:20px;box-shadow:var(--shadow);}
+
+/* BUTTONS */
+.btn{display:block;width:100%;padding:14px 20px;border-radius:14px;border:none;
+  font-family:'DM Sans',sans-serif;font-size:15px;font-weight:500;cursor:pointer;transition:all .2s;text-align:center;}
+.btn-primary{background:linear-gradient(135deg,var(--sage),var(--sage-d));color:#fff;}
+.btn-primary:active{transform:scale(.98);}
+.btn-ghost{background:transparent;border:1.5px solid var(--border);color:var(--muted);}
+.btn-ghost:active{background:var(--parchment);}
+.btn-sm{display:inline-block;width:auto;padding:10px 18px;}
+
+/* INPUTS */
+label.field-label{font-size:11px;color:var(--muted);font-weight:500;letter-spacing:.06em;
+  text-transform:uppercase;display:block;margin-bottom:6px;}
+input,textarea,select{font-family:'DM Sans',sans-serif;background:var(--parchment);
+  border:1.5px solid var(--border);border-radius:14px;padding:12px 16px;font-size:15px;
+  color:var(--ink);width:100%;outline:none;transition:border-color .2s;appearance:none;}
+input:focus,textarea:focus,select:focus{border-color:var(--sage);}
+textarea{resize:none;line-height:1.7;}
+
+/* TAGS / CHIPS */
+.chip{display:inline-block;padding:7px 16px;border-radius:100px;font-size:13px;
+  cursor:pointer;transition:all .2s;border:1.5px solid var(--border);
+  font-family:'DM Sans',sans-serif;background:transparent;color:var(--ink);}
+.chip.sel-sage{background:var(--sage);color:#fff;border-color:var(--sage);}
+.chip.sel-rose{background:var(--rose);color:#fff;border-color:var(--rose);}
+.chip.sel-amber{background:var(--amber);color:#fff;border-color:var(--amber);}
+.chip.sel-lavender{background:var(--lavender);color:#fff;border-color:var(--lavender);}
+
+/* PROGRESS */
+.progress-row{display:flex;gap:4px;margin-bottom:24px;}
+.progress-row .seg{flex:1;}
+.progress-row .bar{height:4px;border-radius:4px;background:var(--parchment2);transition:background .3s;}
+.progress-row .bar.done{background:var(--sage);}
+.progress-row .seg-label{font-size:10px;color:var(--muted);margin-top:4px;text-align:center;}
+.progress-row .seg-label.active{color:var(--sage-d);font-weight:500;}
+
+/* RANGE */
+input[type=range]{height:8px;border-radius:4px;background:var(--parchment2);
+  padding:0;border:none;cursor:pointer;-webkit-appearance:none;appearance:none;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:24px;
+  border-radius:50%;background:#fff;border:3px solid var(--sage);
+  box-shadow:0 2px 8px rgba(0,0,0,.15);cursor:pointer;}
+input[type=range]::-moz-range-thumb{width:24px;height:24px;border-radius:50%;
+  background:#fff;border:3px solid var(--sage);box-shadow:0 2px 8px rgba(0,0,0,.15);cursor:pointer;}
+
+/* BOTTOM NAV */
+#bottom-nav{position:fixed;bottom:0;left:0;right:0;max-width:480px;margin:0 auto;
+  background:rgba(245,239,230,.94);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  border-top:1px solid var(--border);display:flex;z-index:200;
+  padding-bottom:env(safe-area-inset-bottom,16px);}
+.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
+  background:none;border:none;cursor:pointer;padding:9px 0;
+  transition:all .2s;opacity:.4;}
+.nav-btn.active{opacity:1;transform:scale(1.08);}
+.nav-btn .nav-icon{font-size:22px;}
+.nav-btn .nav-label{font-size:10px;font-family:'DM Sans',sans-serif;color:var(--muted);}
+.nav-btn.active .nav-label{color:var(--sage-d);font-weight:500;}
+
+/* STATS GRID */
+.stats-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;}
+.stat-card{padding:12px 10px;text-align:center;}
+.stat-val{font-size:22px;font-weight:600;color:var(--sage-d);}
+.stat-label{font-size:10px;color:var(--muted);margin-top:2px;}
+
+/* RECENT ITEMS */
+.entry-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);}
+.entry-row:last-child{border-bottom:none;}
+.entry-emoji{font-size:22px;min-width:28px;}
+.entry-info{flex:1;min-width:0;}
+.entry-date{font-size:13px;font-weight:500;}
+.entry-note{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.entry-score{font-size:16px;font-weight:700;min-width:28px;text-align:right;}
+
+/* WARNING */
+.warning-banner{background:linear-gradient(135deg,rgba(192,128,112,.13),rgba(140,127,168,.13));
+  border:1.5px solid rgba(192,128,112,.4);border-radius:16px;padding:14px 16px;
+  margin-bottom:14px;display:flex;gap:10px;align-items:flex-start;}
+.warning-icon{font-size:22px;}
+.warning-title{font-size:14px;font-weight:600;color:var(--rose);margin-bottom:4px;}
+.warning-body{font-size:13px;color:var(--ink);line-height:1.6;}
+
+/* UTILITY */
+.flex-row{display:flex;gap:8px;}
+.flex-row .btn{flex:1;}
+.muted{color:var(--muted);}
+.gap-col{display:flex;flex-direction:column;gap:12px;}
+.section-title{font-size:13px;font-weight:600;color:var(--ink);margin-bottom:12px;}
+.card-p{padding:18px 18px;}
+.mb8{margin-bottom:8px;}
+.mb12{margin-bottom:12px;}
+.mb16{margin-bottom:16px;}
+.mb20{margin-bottom:20px;}
+.chip-wrap{display:flex;flex-wrap:wrap;gap:8px;}
+.scroll-row{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none;}
+.scroll-row::-webkit-scrollbar{display:none;}
+.pill-tag{display:inline-block;padding:3px 12px;border-radius:100px;font-size:12px;}
+.row-between{display:flex;justify-content:space-between;align-items:center;}
+.saved-screen{text-align:center;padding:60px 24px 100px;}
+.saved-emoji{font-size:72px;margin-bottom:16px;}
+.impact-bar-wrap{margin-bottom:14px;}
+.impact-bar-row{display:flex;justify-content:space-between;margin-bottom:4px;}
+.impact-bar-bg{height:6px;background:var(--parchment2);border-radius:3px;overflow:hidden;}
+.impact-bar-fill{height:100%;border-radius:3px;transition:width 1s;}
+.sub-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;}
+.dashed-card{border:1.5px dashed var(--sage-l) !important;}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
+.mini-stat{padding:16px;}
+.mini-label{font-size:11px;color:var(--muted);margin-bottom:6px;}
+.mini-emoji{font-size:28px;}
+.mini-val{font-size:20px;font-weight:700;}
+.mini-date{font-size:11px;color:var(--muted);margin-top:2px;}
+.hd-hint{margin-top:10px;padding:10px 14px;background:rgba(140,127,168,.1);border-radius:12px;font-size:13px;color:var(--lavender);line-height:1.6;}
+.zw-hint{margin-top:10px;padding:8px 12px;background:rgba(200,154,80,.1);border-radius:12px;font-size:13px;color:var(--amber);}
+.detail-card{background:rgba(255,255,255,.5);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:12px;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="blob1"></div>
+  <div class="blob2"></div>
+
+  <!-- ══════════ HOME ══════════ -->
+  <div id="view-home" class="view active">
+    <div class="mb20">
+      <div class="serif" style="font-size:12px;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;">身心靈追蹤平台</div>
+      <h1 id="home-greeting" class="serif" style="font-size:30px;font-weight:600;line-height:1.2;margin-top:4px;color:var(--ink);">我的健康日誌</h1>
+      <div id="home-date" style="font-size:13px;color:var(--muted);margin-top:4px;"></div>
+    </div>
+    <div id="home-warning"></div>
+    <div id="home-today" class="glass card-p mb12"></div>
+    <div id="home-stats" class="stats-grid mb12"></div>
+    <div id="home-trend" class="glass" style="padding:16px;margin-bottom:12px;display:none;">
+      <div class="section-title">📈 30日心情趨勢</div>
+      <canvas id="trend-chart" height="160"></canvas>
+    </div>
+    <div id="home-pie" class="glass" style="padding:16px;margin-bottom:12px;display:none;">
+      <div class="section-title">🎯 影響因子分析</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px;" id="pie-hint">點擊扇形查看細項</div>
+      <canvas id="pie-chart" height="200"></canvas>
+    </div>
+    <div id="home-recent" class="glass card-p" style="display:none;">
+      <div class="section-title">🗓 最近紀錄</div>
+      <div id="recent-list"></div>
+    </div>
+  </div>
+
+  <!-- ══════════ TRACKER ══════════ -->
+  <div id="view-tracker" class="view">
+    <div class="serif mb12" style="font-size:28px;font-weight:600;color:var(--ink);">今日記錄</div>
+    <div id="tracker-date" class="mb20" style="font-size:13px;color:var(--muted);"></div>
+
+    <!-- steps -->
+    <div class="progress-row" id="progress-row">
+      <div class="seg"><div class="bar done" id="bar-0"></div><div class="seg-label active" id="lbl-0">心情</div></div>
+      <div class="seg"><div class="bar" id="bar-1"></div><div class="seg-label" id="lbl-1">情緒</div></div>
+      <div class="seg"><div class="bar" id="bar-2"></div><div class="seg-label" id="lbl-2">因子</div></div>
+      <div class="seg"><div class="bar" id="bar-3"></div><div class="seg-label" id="lbl-3">筆記</div></div>
+    </div>
+
+    <div id="step-0">
+      <div style="text-align:center;margin-bottom:28px;">
+        <div id="mood-emoji" style="font-size:64px;margin-bottom:4px;">🌤</div>
+        <div id="mood-num" class="serif" style="font-size:52px;font-weight:600;color:var(--amber);line-height:1;">5</div>
+        <div style="font-size:13px;color:var(--muted);">/ 10</div>
+      </div>
+      <input type="range" id="mood-slider" min="1" max="10" value="5" style="width:100%;margin-bottom:10px;"/>
+      <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:22px;">
+        <span>🌧 Low</span><span>🌤 Normal</span><span>☀️ Great</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:20px;">
+        <button class="btn btn-ghost" onclick="quickMood(2)">😔 低落</button>
+        <button class="btn btn-ghost" onclick="quickMood(5)">😌 普通</button>
+        <button class="btn btn-ghost" onclick="quickMood(8)">😄 很好</button>
+      </div>
+      <button class="btn btn-primary" onclick="goStep(1)">下一步 →</button>
+    </div>
+
+    <div id="step-1" style="display:none;">
+      <div style="font-size:14px;color:var(--muted);margin-bottom:14px;">選擇今天的情緒標籤（可多選）</div>
+      <div class="chip-wrap mb20" id="emotion-chips"></div>
+      <div class="flex-row">
+        <button class="btn btn-ghost btn-sm" onclick="goStep(0)">← 返回</button>
+        <button class="btn btn-primary" onclick="goStep(2)">下一步 →</button>
+      </div>
+    </div>
+
+    <div id="step-2" style="display:none;">
+      <div style="font-size:14px;color:var(--muted);margin-bottom:12px;">什麼影響了你的心情？</div>
+      <div class="scroll-row mb12" id="cat-btns"></div>
+      <div id="sub-panel" class="detail-card" style="display:none;">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">細項：</div>
+        <div class="chip-wrap" id="sub-chips"></div>
+      </div>
+      <div id="selected-factors" class="chip-wrap mb12"></div>
+      <div class="flex-row">
+        <button class="btn btn-ghost btn-sm" onclick="goStep(1)">← 返回</button>
+        <button class="btn btn-primary" onclick="goStep(3)">下一步 →</button>
+      </div>
+    </div>
+
+    <div id="step-3" style="display:none;">
+      <div style="font-size:14px;color:var(--muted);margin-bottom:10px;">今天有什麼想記錄的嗎？</div>
+      <textarea id="notes-input" rows="6" placeholder="在這裡自由書寫...
+今天發生了什麼？有什麼感受？" style="margin-bottom:14px;"></textarea>
+      <div class="glass card-p mb16" style="padding:12px 14px;">
+        <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);">
+          <span>🔔</span>
+          <span>推播提醒接口預留（每晚 23:00）— <span style="color:var(--sage);cursor:pointer;">未來可啟用</span></span>
+        </div>
+      </div>
+      <div class="flex-row">
+        <button class="btn btn-ghost btn-sm" onclick="goStep(2)">← 返回</button>
+        <button class="btn btn-primary" onclick="saveEntry()">💾 儲存今日記錄</button>
+      </div>
+    </div>
+
+    <div id="step-saved" style="display:none;" class="saved-screen">
+      <div id="saved-emoji" class="saved-emoji">🌤</div>
+      <div class="serif" style="font-size:28px;color:var(--ink);margin-bottom:8px;">已記錄完成 ✨</div>
+      <div style="font-size:14px;color:var(--muted);margin-bottom:28px;">感謝你今天的覺察與記錄 🌿</div>
+      <button class="btn btn-primary" onclick="resetTracker()">再次記錄</button>
+    </div>
+  </div>
+
+  <!-- ══════════ INSIGHTS ══════════ -->
+  <div id="view-insights" class="view">
+    <div class="serif mb4" style="font-size:28px;font-weight:600;color:var(--ink);">智慧洞察</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:20px;">你的心情模式與建議</div>
+    <div id="insights-warning"></div>
+    <div id="insights-content"></div>
+  </div>
+
+  <!-- ══════════ PROFILE ══════════ -->
+  <div id="view-profile" class="view">
+    <div class="serif mb4" style="font-size:28px;font-weight:600;color:var(--ink);">個人設定</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:20px;">基本資料與星盤設定</div>
+
+    <div class="glass card-p mb12">
+      <div class="section-title" style="color:var(--ink);">👤 基本資料</div>
+      <div class="gap-col">
+        <div><label class="field-label">名稱</label><input id="p-name" placeholder="你的名字"/></div>
+        <div><label class="field-label">生日</label><input id="p-birthday" type="date"/></div>
+        <div><label class="field-label">出生時間</label><input id="p-birthtime" type="time"/></div>
+      </div>
+    </div>
+
+    <div class="glass card-p mb12">
+      <div class="section-title" style="color:var(--lavender);">🌌 人類圖 (Human Design)</div>
+      <div class="gap-col">
+        <div>
+          <label class="field-label">類型 (Type)</label>
+          <select id="p-hd-type" onchange="updateHdHint()">
+            <option value="">選擇類型</option>
+            <option>Generator</option><option>Manifesting Generator</option>
+            <option>Projector</option><option>Manifestor</option><option>Reflector</option>
+          </select>
+        </div>
+        <div>
+          <label class="field-label">策略 (Strategy)</label>
+          <select id="p-hd-strategy" onchange="updateHdHint()">
+            <option value="">選擇策略</option>
+            <option>等待回應</option><option>等待邀請</option>
+            <option>通知後行動</option><option>等待月相循環</option><option>等待滿足感</option>
+          </select>
+        </div>
+        <div>
+          <label class="field-label">內在權威 (Authority)</label>
+          <select id="p-hd-auth" onchange="updateHdHint()">
+            <option value="">選擇權威</option>
+            <option>骶骨</option><option>情感</option><option>脾臟</option>
+            <option>自我投射</option><option>心臟</option><option>意志力</option><option>無</option>
+          </select>
+        </div>
+      </div>
+      <div id="hd-hint" class="hd-hint" style="display:none;"></div>
+    </div>
+
+    <div class="glass card-p mb16">
+      <div class="section-title" style="color:var(--amber);">⭐ 紫微斗數</div>
+      <label class="field-label">命宮主星</label>
+      <select id="p-ziwei" onchange="updateZwHint()">
+        <option value="">選擇主星</option>
+        <option>紫微</option><option>天機</option><option>太陽</option><option>武曲</option>
+        <option>天同</option><option>廉貞</option><option>天府</option><option>太陰</option>
+        <option>貪狼</option><option>巨門</option><option>天相</option><option>天梁</option>
+        <option>七殺</option><option>破軍</option>
+      </select>
+      <div id="zw-hint" class="zw-hint" style="display:none;"></div>
+    </div>
+
+    <button class="btn btn-primary mb12" id="save-profile-btn" onclick="saveProfile()">儲存設定</button>
+    <button class="btn btn-ghost" onclick="exportData()">📤 匯出所有資料（JSON 備份）</button>
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <nav id="bottom-nav">
+    <button class="nav-btn active" data-view="home" onclick="navigate('home')">
+      <span class="nav-icon">🏡</span><span class="nav-label">首頁</span>
+    </button>
+    <button class="nav-btn" data-view="tracker" onclick="navigate('tracker')">
+      <span class="nav-icon">✍️</span><span class="nav-label">記錄</span>
+    </button>
+    <button class="nav-btn" data-view="insights" onclick="navigate('insights')">
+      <span class="nav-icon">💡</span><span class="nav-label">洞察</span>
+    </button>
+    <button class="nav-btn" data-view="profile" onclick="navigate('profile')">
+      <span class="nav-icon">🌿</span><span class="nav-label">設定</span>
+    </button>
+  </nav>
+</div>
+
+<script>
+/* ═══════════════════════════════════════
+   DATA
+═══════════════════════════════════════ */
+const KEY = "wellness_v3";
+const EMOTIONS = ["平靜","喜悅","感恩","焦慮","疲憊","孤獨","充實","迷茫","愛","憤怒","希望","壓力"];
+const CATS = {
+  weather:{label:"天氣",icon:"🌤",color:"#C89A50",sub:["晴天","雨天","陰天","悶熱","涼爽"]},
+  friends:{label:"朋友",icon:"👥",color:"#7A9E7E",sub:["Friend A","Friend B","Friend C","家人"]},
+  health: {label:"健康",icon:"💚",color:"#8C7FA8",sub:["睡眠好","睡眠差","運動了","身體不適"]},
+  work:   {label:"工作",icon:"💼",color:"#C08070",sub:["工作順利","壓力大","有成就感","無聊"]},
+};
+
+let DB = load();
+
+function load(){
+  try{ return JSON.parse(localStorage.getItem(KEY)) || fresh(); }
+  catch(e){ return fresh(); }
+}
+function fresh(){ return {profile:{name:"",birthday:"",birthTime:"",hdType:"",hdStrategy:"",hdAuthority:"",ziWeiStar:""},entries:[]}; }
+function persist(){ localStorage.setItem(KEY, JSON.stringify(DB)); }
+
+/* seed demo data if empty */
+(function seed(){
+  if(DB.entries.length>0) return;
+  const moods=[4,6,3,7,5,8,2,6,7,4,5,3,8,6,5,7,4,6,8,5,3,7,6,4,5,8,7,6,5,4];
+  const ckeys=Object.keys(CATS);
+  for(let i=29;i>=0;i--){
+    const d=new Date(); d.setDate(d.getDate()-i);
+    const cat=ckeys[i%ckeys.length];
+    const sub=CATS[cat].sub[i%CATS[cat].sub.length];
+    DB.entries.push({id:"d"+i,timestamp:d.toISOString(),moodScore:moods[i]||5,
+      emotionTags:[EMOTIONS[i%EMOTIONS.length],EMOTIONS[(i+3)%EMOTIONS.length]],
+      impactFactors:[{category:cat,detail:sub}],notes:""});
+  }
+  persist();
+})();
+
+/* ═══════════════════════════════════════
+   MOOD UTILS
+═══════════════════════════════════════ */
+function moodInfo(s){
+  if(s<=3) return {label:"Low",color:"#C08070",emoji:"🌧"};
+  if(s<=6) return {label:"Normal",color:"#C89A50",emoji:"🌤"};
+  return {label:"Great",color:"#7A9E7E",emoji:"☀️"};
+}
+
+/* ═══════════════════════════════════════
+   NAVIGATION
+═══════════════════════════════════════ */
+let currentView = "home";
+function navigate(v){
+  document.querySelectorAll(".view").forEach(el=>el.classList.remove("active"));
+  document.querySelectorAll(".nav-btn").forEach(el=>el.classList.remove("active"));
+  document.getElementById("view-"+v).classList.add("active");
+  document.querySelector(`[data-view="${v}"]`).classList.add("active");
+  currentView = v;
+  if(v==="home") renderHome();
+  if(v==="insights") renderInsights();
+  if(v==="profile") loadProfile();
+  window.scrollTo(0,0);
+}
+
+/* ═══════════════════════════════════════
+   HOME
+═══════════════════════════════════════ */
+let trendChart=null, pieChart=null, pieState="main";
+
+function renderHome(){
+  // date
+  document.getElementById("home-date").textContent =
+    new Date().toLocaleDateString("zh-TW",{year:"numeric",month:"long",day:"numeric",weekday:"long"});
+
+  // greeting
+  const name = DB.profile.name;
+  document.getElementById("home-greeting").textContent = name ? `你好，${name}` : "我的健康日誌";
+
+  const sorted = [...DB.entries].sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp));
+  const todayStr = new Date().toDateString();
+  const todayEntry = sorted.find(e=>new Date(e.timestamp).toDateString()===todayStr);
+
+  // warning
+  const warn = document.getElementById("home-warning");
+  warn.innerHTML = buildWarning();
+
+  // today card
+  const tc = document.getElementById("home-today");
+  if(todayEntry){
+    const mi = moodInfo(todayEntry.moodScore);
+    const tags = (todayEntry.emotionTags||[]).map(t=>`<span class="pill-tag" style="background:var(--sage-l);color:var(--sage-d);">${t}</span>`).join("");
+    tc.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <label class="field-label">今日心情</label>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:4px;">
+            <span style="font-size:36px;">${mi.emoji}</span>
+            <div>
+              <div style="font-size:24px;font-weight:600;color:${mi.color};">${todayEntry.moodScore}/10</div>
+              <div style="font-size:13px;color:var(--muted);">${mi.label}</div>
+            </div>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="navigate('tracker')">更新</button>
+      </div>
+      ${tags?`<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;">${tags}</div>`:""}`;
+  } else {
+    tc.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <label class="field-label">今日心情</label>
+          <div style="font-size:14px;color:var(--muted);margin-top:8px;">今天尚未記錄</div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="navigate('tracker')">+ 記錄</button>
+      </div>`;
+  }
+
+  // stats
+  const all = DB.entries;
+  const avg = all.length ? (all.reduce((s,e)=>s+e.moodScore,0)/all.length).toFixed(1) : "--";
+  const week7 = all.filter(e=>(new Date()-new Date(e.timestamp))/86400000<=7);
+  const wAvg = week7.length ? (week7.reduce((s,e)=>s+e.moodScore,0)/week7.length).toFixed(1) : "--";
+  document.getElementById("home-stats").innerHTML = `
+    <div class="glass stat-card"><div class="stat-val">${all.length}</div><div class="stat-label">總記錄（天）</div></div>
+    <div class="glass stat-card"><div class="stat-val">${wAvg}</div><div class="stat-label">本週均分</div></div>
+    <div class="glass stat-card"><div class="stat-val">${avg}</div><div class="stat-label">整體均分</div></div>`;
+
+  // trend chart
+  if(all.length>=2){
+    document.getElementById("home-trend").style.display="block";
+    const last30=[...all].sort((a,b)=>new Date(a.timestamp)-new Date(b.timestamp)).slice(-30);
+    const labels=last30.map(e=>new Date(e.timestamp).toLocaleDateString("zh-TW",{month:"numeric",day:"numeric"}));
+    const scores=last30.map(e=>e.moodScore);
+    const pointColors=scores.map(s=>moodInfo(s).color);
+    if(trendChart) trendChart.destroy();
+    const ctx=document.getElementById("trend-chart").getContext("2d");
+    trendChart=new Chart(ctx,{
+      type:"line",
+      data:{labels,datasets:[{data:scores,borderColor:"#7A9E7E",borderWidth:2.5,
+        pointBackgroundColor:pointColors,pointBorderColor:"#fff",pointBorderWidth:2,pointRadius:4,
+        tension:.4,fill:true,
+        backgroundColor:(ctx2)=>{const g=ctx2.chart.ctx.createLinearGradient(0,0,0,160);g.addColorStop(0,"rgba(122,158,126,.15)");g.addColorStop(1,"rgba(122,158,126,0)");return g;}}]},
+      options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.raw} ${moodInfo(c.raw).emoji} ${moodInfo(c.raw).label}`}}},
+        scales:{y:{min:1,max:10,ticks:{color:"#8A7A6A",font:{size:10},stepSize:3},grid:{color:"rgba(180,160,140,.2)"}},
+          x:{ticks:{color:"#8A7A6A",font:{size:10},maxTicksLimit:6},grid:{display:false}}}}
+    });
+  }
+
+  // pie chart
+  const freq=computeFreq();
+  const freqKeys=Object.keys(freq);
+  if(freqKeys.length>0){
+    document.getElementById("home-pie").style.display="block";
+    buildPie(freq,"main",null);
+  }
+
+  // recent
+  if(sorted.length>0){
+    document.getElementById("home-recent").style.display="block";
+    document.getElementById("recent-list").innerHTML=sorted.slice(0,5).map(e=>{
+      const mi=moodInfo(e.moodScore);
+      return `<div class="entry-row">
+        <span class="entry-emoji">${mi.emoji}</span>
+        <div class="entry-info">
+          <div class="entry-date">${new Date(e.timestamp).toLocaleDateString("zh-TW",{month:"numeric",day:"numeric",weekday:"short"})}</div>
+          <div class="entry-note">${e.notes||(e.emotionTags?.join("、")||"無備注")}</div>
+        </div>
+        <div class="entry-score" style="color:${mi.color};">${e.moodScore}</div>
+      </div>`;
+    }).join("");
+  }
+}
+
+function computeFreq(){
+  const freq={};
+  DB.entries.forEach(e=>(e.impactFactors||[]).forEach(f=>{
+    if(!freq[f.category])freq[f.category]={count:0,subs:{},color:CATS[f.category]?.color||"#999"};
+    freq[f.category].count++;
+    freq[f.category].subs[f.detail]=(freq[f.category].subs[f.detail]||0)+1;
+  }));
+  return freq;
+}
+
+function buildPie(freq, state, activeKey){
+  if(pieChart) pieChart.destroy();
+  const ctx=document.getElementById("pie-chart").getContext("2d");
+  let labels,data,colors,hint;
+  if(state==="main"){
+    labels=Object.keys(freq).map(k=>CATS[k]?.label||k);
+    data=Object.values(freq).map(v=>v.count);
+    colors=Object.keys(freq).map(k=>freq[k].color);
+    hint="點擊扇形查看細項";
+  } else {
+    const subs=freq[activeKey].subs;
+    labels=Object.keys(subs);
+    data=Object.values(subs);
+    const base=freq[activeKey].color;
+    colors=labels.map((_,i)=>base+(Math.round(255*(0.4+i/labels.length*0.6)).toString(16).padStart(2,"0")));
+    hint=`${CATS[activeKey]?.label} 細項 · <span style="cursor:pointer;text-decoration:underline;" onclick="buildPie(window._freq,'main',null);document.getElementById('pie-hint').innerHTML='點擊扇形查看細項';">← 返回</span>`;
+  }
+  document.getElementById("pie-hint").innerHTML=hint;
+  window._freq=freq;
+  pieChart=new Chart(ctx,{
+    type:"pie",
+    data:{labels,datasets:[{data,backgroundColor:colors,borderColor:"#fff",borderWidth:2}]},
+    options:{responsive:true,plugins:{legend:{position:"bottom",labels:{font:{size:12},color:"#8A7A6A",boxWidth:10,padding:10}},
+      tooltip:{callbacks:{label:c=>`${c.label}: ${c.raw}次`}}},
+      onClick:(evt,items)=>{
+        if(state==="main"&&items.length>0){
+          const idx=items[0].index;
+          const key=Object.keys(freq)[idx];
+          if(Object.keys(freq[key].subs).length>0){
+            buildPie(freq,"sub",key);
+          }
+        }
+      }
+    }
+  });
+}
+
+function buildWarning(){
+  const sorted=[...DB.entries].sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp));
+  const last3=sorted.slice(0,3);
+  if(last3.length<3||!last3.every(e=>e.moodScore<=3)) return "";
+  const hdWarn=["Projector","Reflector"].includes(DB.profile.hdType);
+  return `<div class="warning-banner">
+    <span class="warning-icon">⚠️</span>
+    <div>
+      <div class="warning-title">決策警告</div>
+      <div class="warning-body">您已連續 3 天心情低落。${hdWarn?`根據您的人類圖類型（${DB.profile.hdType}），目前可能處於「非自己主題」，`:""}建議暫緩重大決策，多給自己一些空間。🌿</div>
+    </div>
+  </div>`;
+}
+
+/* ═══════════════════════════════════════
+   TRACKER
+═══════════════════════════════════════ */
+let currentStep=0, selEmotions=[], selFactors=[], activeCategory=null;
+
+function initTracker(){
+  document.getElementById("tracker-date").textContent=
+    new Date().toLocaleDateString("zh-TW",{month:"long",day:"numeric",weekday:"long"});
+  // emotion chips
+  const ec=document.getElementById("emotion-chips");
+  ec.innerHTML=EMOTIONS.map(t=>`<button class="chip" id="ec-${t}" onclick="toggleEmotion('${t}')">${t}</button>`).join("");
+  // category buttons
+  const cb=document.getElementById("cat-btns");
+  cb.innerHTML=Object.entries(CATS).map(([k,c])=>
+    `<button class="chip" id="catbtn-${k}" style="white-space:nowrap;" onclick="toggleCat('${k}')">${c.icon} ${c.label}</button>`
+  ).join("");
+  updateSlider();
+}
+
+function updateSlider(){
+  const s=parseInt(document.getElementById("mood-slider").value);
+  const mi=moodInfo(s);
+  document.getElementById("mood-emoji").textContent=mi.emoji;
+  document.getElementById("mood-num").textContent=s;
+  document.getElementById("mood-num").style.color=mi.color;
+  document.getElementById("mood-slider").style.background=
+    `linear-gradient(to right,${mi.color} ${(s-1)/9*100}%,#EDE3D4 ${(s-1)/9*100}%)`;
+}
+document.getElementById("mood-slider").addEventListener("input",updateSlider);
+
+function quickMood(s){
+  document.getElementById("mood-slider").value=s;
+  updateSlider();
+}
+
+function toggleEmotion(t){
+  const i=selEmotions.indexOf(t);
+  if(i>-1)selEmotions.splice(i,1); else selEmotions.push(t);
+  document.getElementById("ec-"+t).className="chip"+(selEmotions.includes(t)?" sel-sage":"");
+}
+
+function toggleCat(k){
+  activeCategory=activeCategory===k?null:k;
+  Object.keys(CATS).forEach(c=>{
+    document.getElementById("catbtn-"+c).className="chip"+(activeCategory===c?" sel-sage":"");
+    if(CATS[c].color==="#7A9E7E"&&activeCategory===c){
+      document.getElementById("catbtn-"+c).className="chip sel-sage";
+    }
+  });
+  // color per category
+  if(activeCategory){
+    const col=CATS[activeCategory].color;
+    const btn=document.getElementById("catbtn-"+activeCategory);
+    btn.style.background=col; btn.style.color="#fff"; btn.style.borderColor=col;
+  }
+  Object.keys(CATS).filter(c=>c!==activeCategory).forEach(c=>{
+    const btn=document.getElementById("catbtn-"+c);
+    btn.style.background=""; btn.style.color=""; btn.style.borderColor="";
+  });
+
+  const panel=document.getElementById("sub-panel");
+  const sc=document.getElementById("sub-chips");
+  if(activeCategory){
+    panel.style.display="block";
+    sc.innerHTML=CATS[activeCategory].sub.map(s=>{
+      const sel=selFactors.some(f=>f.category===activeCategory&&f.detail===s);
+      return `<button class="chip" id="sub-${activeCategory}-${s.replace(/\s/g,'_')}" onclick="toggleSub('${activeCategory}','${s}')" style="${sel?`background:${CATS[activeCategory].color};color:#fff;border-color:${CATS[activeCategory].color};`:""}">${s}</button>`;
+    }).join("");
+  } else {
+    panel.style.display="none";
+  }
+}
+
+function toggleSub(cat,sub){
+  const idx=selFactors.findIndex(f=>f.category===cat&&f.detail===sub);
+  if(idx>-1)selFactors.splice(idx,1); else selFactors.push({category:cat,detail:sub});
+  toggleCat(cat); // re-render sub
+  renderSelFactors();
+}
+
+function renderSelFactors(){
+  const sf=document.getElementById("selected-factors");
+  sf.innerHTML=selFactors.map(f=>{
+    const col=CATS[f.category]?.color||"#999";
+    return `<span style="display:inline-block;padding:4px 12px;border-radius:100px;font-size:12px;background:${col}22;color:${col};border:1px solid ${col}44;">${CATS[f.category]?.icon} ${f.detail}</span>`;
+  }).join("");
+}
+
+function goStep(n){
+  ["step-0","step-1","step-2","step-3","step-saved"].forEach(id=>document.getElementById(id).style.display="none");
+  document.getElementById("step-"+n).style.display="block";
+  currentStep=n;
+  updateProgress(n);
+}
+
+function updateProgress(n){
+  for(let i=0;i<4;i++){
+    document.getElementById("bar-"+i).className="bar"+(i<=n?" done":"");
+    document.getElementById("lbl-"+i).className="seg-label"+(i===n?" active":"");
+  }
+}
+
+function saveEntry(){
+  const score=parseInt(document.getElementById("mood-slider").value);
+  const notes=document.getElementById("notes-input").value;
+  const entry={
+    id:"entry_"+Date.now(),
+    timestamp:new Date().toISOString(),
+    moodScore:score,
+    emotionTags:[...selEmotions],
+    impactFactors:[...selFactors],
+    notes
+  };
+  // replace today if exists
+  const todayStr=new Date().toDateString();
+  DB.entries=DB.entries.filter(e=>new Date(e.timestamp).toDateString()!==todayStr);
+  DB.entries.push(entry);
+  persist();
+  document.getElementById("saved-emoji").textContent=moodInfo(score).emoji;
+  goStep("saved");
+}
+
+function resetTracker(){
+  selEmotions=[];selFactors=[];activeCategory=null;
+  document.getElementById("mood-slider").value=5;
+  document.getElementById("notes-input").value="";
+  updateSlider();
+  initTracker();
+  goStep(0);
+}
+
+/* ═══════════════════════════════════════
+   INSIGHTS
+═══════════════════════════════════════ */
+function renderInsights(){
+  const warn=document.getElementById("insights-warning");
+  warn.innerHTML=buildWarning();
+  const c=document.getElementById("insights-content");
+  const all=DB.entries;
+  if(!all.length){
+    c.innerHTML=`<div style="text-align:center;padding:40px 0;">
+      <div style="font-size:48px;margin-bottom:12px;">🔍</div>
+      <div class="serif" style="font-size:22px;color:var(--ink);">尚無足夠資料</div>
+      <div style="font-size:13px;color:var(--muted);margin-top:8px;">記錄幾天後洞察將自動啟動</div>
+    </div>`;
+    return;
+  }
+  const sorted=[...all].sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp));
+  const last3=sorted.slice(0,3);
+  const l3avg=last3.length?(last3.reduce((s,e)=>s+e.moodScore,0)/last3.length).toFixed(1):"--";
+  const allLow=last3.length===3&&last3.every(e=>e.moodScore<=3);
+  const best=all.reduce((a,b)=>a.moodScore>b.moodScore?a:b,all[0]);
+  const worst=all.reduce((a,b)=>a.moodScore<b.moodScore?a:b,all[0]);
+  const freq=computeFreq();
+
+  const impactRows=Object.entries(freq).sort(([,a],[,b])=>b.count-a.count).map(([cat,val])=>{
+    const pct=(val.count/all.length*100).toFixed(0);
+    const subTags=Object.entries(val.subs).sort(([,a],[,b])=>b-a).slice(0,3)
+      .map(([s,n])=>`<span style="font-size:11px;color:var(--muted);background:var(--parchment2);border-radius:100px;padding:2px 10px;">${s}(${n})</span>`).join("");
+    return `<div class="impact-bar-wrap">
+      <div class="impact-bar-row">
+        <span style="font-size:13px;">${CATS[cat]?.icon} ${CATS[cat]?.label}</span>
+        <span style="font-size:13px;color:var(--muted);">${val.count}次</span>
+      </div>
+      <div class="impact-bar-bg"><div class="impact-bar-fill" style="width:${pct}%;background:${val.color};"></div></div>
+      <div class="sub-tags">${subTags}</div>
+    </div>`;
+  }).join("");
+
+  c.innerHTML=`
+    <div class="glass card-p mb12">
+      <div class="section-title">🧭 決策狀態指標</div>
+      ${[
+        ["近3天平均",l3avg+"分"],
+        ["建議決策",allLow?"⚠️ 暫緩":"✅ 可行"],
+        ["人類圖策略",DB.profile.hdStrategy||"未設定"],
+        ["內在權威",DB.profile.hdAuthority||"未設定"],
+      ].map(([l,v])=>`<div class="row-between" style="padding:9px 0;border-bottom:1px solid var(--border);">
+        <span style="font-size:13px;color:var(--muted);">${l}</span>
+        <span style="font-size:13px;font-weight:600;">${v}</span>
+      </div>`).join("")}
+    </div>
+    <div class="two-col">
+      <div class="glass mini-stat">
+        <div class="mini-label">🏆 最佳一天</div>
+        <div class="mini-emoji">${moodInfo(best.moodScore).emoji}</div>
+        <div class="mini-val" style="color:var(--sage);">${best.moodScore}/10</div>
+        <div class="mini-date">${new Date(best.timestamp).toLocaleDateString("zh-TW",{month:"numeric",day:"numeric"})}</div>
+      </div>
+      <div class="glass mini-stat">
+        <div class="mini-label">💤 最低一天</div>
+        <div class="mini-emoji">${moodInfo(worst.moodScore).emoji}</div>
+        <div class="mini-val" style="color:var(--rose);">${worst.moodScore}/10</div>
+        <div class="mini-date">${new Date(worst.timestamp).toLocaleDateString("zh-TW",{month:"numeric",day:"numeric"})}</div>
+      </div>
+    </div>
+    <div class="glass card-p mb12">
+      <div class="section-title">🎯 影響因子排行</div>
+      ${impactRows}
+    </div>
+    <div class="glass card-p dashed-card">
+      <div class="section-title" style="color:var(--sage-d);">🤖 AI 分析接口（未來擴充）</div>
+      <div style="font-size:12px;color:var(--muted);line-height:1.8;">
+        ・情緒日誌自動標籤化<br>
+        ・心情與天氣關聯分析<br>
+        ・紫微主星與心情週期對比<br>
+        ・人類圖「非自己主題」模式識別
+      </div>
+    </div>`;
+}
+
+/* ═══════════════════════════════════════
+   PROFILE
+═══════════════════════════════════════ */
+function loadProfile(){
+  const p=DB.profile;
+  document.getElementById("p-name").value=p.name||"";
+  document.getElementById("p-birthday").value=p.birthday||"";
+  document.getElementById("p-birthtime").value=p.birthTime||"";
+  document.getElementById("p-hd-type").value=p.hdType||"";
+  document.getElementById("p-hd-strategy").value=p.hdStrategy||"";
+  document.getElementById("p-hd-auth").value=p.hdAuthority||"";
+  document.getElementById("p-ziwei").value=p.ziWeiStar||"";
+  updateHdHint(); updateZwHint();
+}
+
+function updateHdHint(){
+  const t=document.getElementById("p-hd-type").value;
+  const s=document.getElementById("p-hd-strategy").value;
+  const a=document.getElementById("p-hd-auth").value;
+  const h=document.getElementById("hd-hint");
+  if(t){h.style.display="block";h.innerHTML=`<b>策略：</b>${s||"未選"} &nbsp;·&nbsp; <b>權威：</b>${a||"未選"}`;}
+  else h.style.display="none";
+}
+function updateZwHint(){
+  const z=document.getElementById("p-ziwei").value;
+  const h=document.getElementById("zw-hint");
+  if(z){h.style.display="block";h.textContent=`✦ ${z}星 — 對照資料預留接入點`;}
+  else h.style.display="none";
+}
+
+function saveProfile(){
+  DB.profile={
+    name:document.getElementById("p-name").value,
+    birthday:document.getElementById("p-birthday").value,
+    birthTime:document.getElementById("p-birthtime").value,
+    hdType:document.getElementById("p-hd-type").value,
+    hdStrategy:document.getElementById("p-hd-strategy").value,
+    hdAuthority:document.getElementById("p-hd-auth").value,
+    ziWeiStar:document.getElementById("p-ziwei").value,
+  };
+  persist();
+  const btn=document.getElementById("save-profile-btn");
+  btn.textContent="✓ 已儲存！";
+  setTimeout(()=>btn.textContent="儲存設定",2500);
+}
+
+function exportData(){
+  const blob=new Blob([JSON.stringify(DB,null,2)],{type:"application/json"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;a.download=`wellness_${new Date().toISOString().split("T")[0]}.json`;
+  a.click();URL.revokeObjectURL(url);
+}
+
+/* ═══════════════════════════════════════
+   INIT
+═══════════════════════════════════════ */
+initTracker();
+renderHome();
+</script>
+</body>
+</html>
