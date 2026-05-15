@@ -54,9 +54,9 @@ input[type=color]::-webkit-color-swatch{border:none;border-radius:50%;}
 #nav{position:fixed;bottom:0;left:0;right:0;max-width:480px;margin:0 auto;background:rgba(236,234,232,.95);backdrop-filter:blur(14px);border-top:1px solid var(--border);display:flex;z-index:200;padding-bottom:env(safe-area-inset-bottom,14px);}
 .nb{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:none;cursor:pointer;padding:9px 0;transition:all .2s;opacity:.38;}
 .nb.active{opacity:1;transform:scale(1.07);}
-.nb .ni{font-size:20px;}
-.nb .nl{font-size:10px;color:var(--muted);font-family:inherit;}
-.nb.active .nl{color:var(--pr-d);font-weight:600;}
+.nb .ni{font-size:22px;}
+.nb .nl{font-size:12px;color:var(--muted);font-family:inherit;font-weight:500;}
+.nb.active .nl{color:var(--pr-d);font-weight:700;}
 .row{display:flex;gap:8px;}.row .btn{flex:1;}
 .col{display:flex;flex-direction:column;gap:11px;}
 .sb{display:flex;justify-content:space-between;align-items:center;}
@@ -64,7 +64,7 @@ input[type=color]::-webkit-color-swatch{border:none;border-radius:50%;}
 .scroll-h{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none;}
 .scroll-h::-webkit-scrollbar{display:none;}
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
-.sec-title{font-size:10px;font-weight:700;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px;}
+.sec-title{font-size:13px;font-weight:700;color:var(--muted);letter-spacing:.04em;text-transform:uppercase;margin-bottom:12px;}
 .e-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);}
 .e-row:last-child{border-bottom:none;}
 .e-info{flex:1;min-width:0;}
@@ -231,7 +231,8 @@ input[type=color]::-webkit-color-swatch{border:none;border-radius:50%;}
     <div id="saved-e" style="font-size:68px;margin-bottom:14px;"></div>
     <div style="font-size:26px;font-weight:700;margin-bottom:8px;">已記錄完成 ✨</div>
     <div style="font-size:14px;color:var(--muted);margin-bottom:26px;">感謝你今天的覺察 🌿</div>
-    <button class="btn btn-pr" onclick="resetTracker()">再次記錄</button>
+    <button class="btn btn-pr" onclick="softReset()">再記一筆</button>
+    <button class="btn btn-ghost" style="margin-top:10px;" onclick="resetTracker()">清除重新記錄</button>
   </div>
 </div>
 
@@ -535,6 +536,7 @@ function go(v){
   if(v==='insights')renderInsights();
   if(v==='profile')loadProfile();
   if(v==='hd')loadHD();
+  localStorage.setItem('md_last_view', v);
   window.scrollTo(0,0);
 }
 function openTrackerWithDate(y,m,d){
@@ -780,6 +782,17 @@ function saveEntry(){
   persist();document.getElementById('saved-e').textContent=moodInfo(score).emoji;document.getElementById('s3').style.display='none';document.getElementById('s-saved').style.display='block';
 }
 function resetTracker(dateStr){selEmotions=[];selFactors=[];activeCat=null;newCatColor=CAT_COLORS[0];document.getElementById('slider').value=5;document.getElementById('notes').value='';updateSlider();initTracker(dateStr||null);goStep(0);}
+function softReset(){
+  document.getElementById('notes').value='';
+  entryDate=new Date();updateDateLabel();
+  // Re-render emotion chips preserving current selections
+  document.getElementById('emotion-chips').innerHTML=EMOTIONS.map(t=>`<button class="chip${selEmotions.includes(t)?' sel':''}" id="ec-${t}" onclick="toggleEmo('${t}')">${t}</button>`).join('');
+  // Re-render category row (preserves activeCat highlight via styleBtn)
+  renderCatRow();
+  // Re-render selected factors summary
+  renderSelF();
+  goStep(0);
+}
 
 // ── REFLECT ──
 let aiScope=7;
@@ -1233,7 +1246,7 @@ function renderCatIcon(cat){
 
 // ── INIT ──
 initTracker();
-renderHome();
+go(localStorage.getItem('md_last_view') || 'home');
 </script>
 </body>
 </html>
