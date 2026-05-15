@@ -395,7 +395,11 @@ input[type=color]::-webkit-color-swatch{border:none;border-radius:50%;}
     <div id="c-groq-bd" class="c-body">
       <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">在 <b>console.groq.com</b> 免費申請 API Key</div>
       <label class="field-label">Groq API Key</label>
-      <input id="p-groq" type="password" placeholder="gsk_…" style="font-family:monospace;font-size:13px;"/>
+      <div style="display:flex;gap:6px;margin-bottom:12px;">
+        <input id="p-groq" type="password" placeholder="gsk_…" style="font-family:monospace;font-size:13px;flex:1;margin-bottom:0;" autocomplete="new-password" autocorrect="off" autocapitalize="none" spellcheck="false"/>
+        <button onclick="toggleVis('p-groq',this)" style="background:rgba(0,0,0,.06);border:none;border-radius:8px;padding:0 10px;cursor:pointer;font-size:14px;flex-shrink:0;">👁</button>
+      </div>
+      <button class="btn btn-pr" id="save-btn" onclick="saveProfile()">儲存設定</button>
     </div>
   </div>
   <div class="glass card-p mb12">
@@ -411,7 +415,10 @@ input[type=color]::-webkit-color-swatch{border:none;border-radius:50%;}
       <div class="col mb12">
         <div>
           <label class="field-label">GitHub Token</label>
-          <input id="gist-token" type="password" placeholder="ghp_..." style="font-family:monospace;font-size:13px;"/>
+          <div style="display:flex;gap:6px;">
+            <input id="gist-token" type="password" placeholder="ghp_..." style="font-family:monospace;font-size:13px;flex:1;margin-bottom:0;" autocomplete="new-password" autocorrect="off" autocapitalize="none" spellcheck="false"/>
+            <button onclick="toggleVis('gist-token',this)" style="background:rgba(0,0,0,.06);border:none;border-radius:8px;padding:0 10px;cursor:pointer;font-size:14px;flex-shrink:0;">👁</button>
+          </div>
         </div>
         <div>
           <label class="field-label">Gist ID</label>
@@ -425,7 +432,6 @@ input[type=color]::-webkit-color-swatch{border:none;border-radius:50%;}
       <div id="gist-status" style="display:none;margin-top:10px;font-size:12px;padding:8px 12px;border-radius:10px;"></div>
     </div>
   </div>
-  <button class="btn btn-pr mb12" id="save-btn" onclick="saveProfile()">儲存設定</button>
   <div class="glass card-p" style="border-color:rgba(160,90,80,.18);">
     <div class="c-toggle" data-card="c-danger" onclick="toggleCard('c-danger')">
       <div class="sec-title" style="color:var(--rose);margin-bottom:0;">🗑 資料管理</div>
@@ -932,6 +938,7 @@ function showAddPerson(){document.getElementById('add-person-form').style.displa
 function hideAddPerson(){document.getElementById('add-person-form').style.display='none';document.getElementById('new-person').value='';}
 function addPerson(){const name=document.getElementById('new-person').value.trim();if(!name)return;if(!DB.profile.people)DB.profile.people=[];DB.profile.people.push({id:'p_'+Date.now(),name});persist();hideAddPerson();renderPeople();}
 function removePerson(id){DB.profile.people=DB.profile.people.filter(p=>p.id!==id);persist();renderPeople();}
+function toggleVis(id,btn){const el=document.getElementById(id);if(!el)return;el.type=el.type==='password'?'text':'password';btn.textContent=el.type==='password'?'👁':'🙈';}
 function saveProfile(){const gk=document.getElementById('p-groq').value.trim();if(gk)localStorage.setItem('groq_key',gk);persist();const btn=document.getElementById('save-btn');btn.textContent='✓ 已儲存';setTimeout(()=>btn.textContent='儲存設定',2500);}
 function exportData(){const blob=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`wellness_${new Date().toISOString().split('T')[0]}.json`;a.click();URL.revokeObjectURL(url);}
 function importData(input){
