@@ -94,6 +94,12 @@ input[type=color]::-webkit-color-swatch{border:none;border-radius:50%;}
 .accordion-btn{display:flex;justify-content:space-between;align-items:center;width:100%;background:none;border:none;cursor:pointer;font-family:inherit;font-size:14px;font-weight:500;color:var(--ink);padding:11px 0;text-align:left;}
 .accordion-body{display:none;font-size:13px;color:var(--muted);line-height:1.7;padding-bottom:10px;}
 .accordion-body.open{display:block;}
+/* Collapsible settings cards */
+.c-toggle{cursor:pointer;user-select:none;display:flex;align-items:center;justify-content:space-between;margin-bottom:0;}
+.c-toggle .chev{font-size:13px;color:var(--faint);transition:transform .25s;flex-shrink:0;margin-left:6px;}
+.c-toggle.coll .chev{transform:rotate(-90deg);}
+.c-body{overflow:hidden;max-height:900px;transition:max-height .32s cubic-bezier(.4,0,.2,1),opacity .25s;opacity:1;margin-top:12px;}
+.c-body.coll{max-height:0!important;opacity:0;margin-top:0;}
 </style>
 </head>
 <body>
@@ -303,99 +309,132 @@ input[type=color]::-webkit-color-swatch{border:none;border-radius:50%;}
   <h1 style="font-size:26px;font-weight:700;margin-bottom:4px;">Settings</h1>
   <div style="font-size:11px;color:var(--faint);letter-spacing:.08em;text-transform:uppercase;margin-bottom:20px;">profile & wellbeing</div>
   <div class="glass card-p mb12">
-    <div class="sec-title">💾 資料備份</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-      <label for="import-file-input" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:16px 8px;border-radius:13px;border:1.5px solid var(--border);cursor:pointer;background:var(--bg2);font-size:13px;text-align:center;">
-        <span style="font-size:22px;">📥</span>
-        <span>匯入 JSON</span>
-        <span style="font-size:11px;color:var(--faint);">點擊選擇檔案</span>
-        <input type="file" id="import-file-input" accept=".json,application/json" style="display:none;" onchange="importData(this)"/>
-      </label>
-      <button onclick="exportData()" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:16px 8px;border-radius:13px;border:1.5px solid var(--border);cursor:pointer;background:var(--bg2);font-size:13px;font-family:inherit;"><span style="font-size:22px;">📤</span>匯出 JSON</button>
+    <div class="c-toggle" data-card="c-backup" onclick="toggleCard('c-backup')">
+      <div class="sec-title" style="margin-bottom:0;">💾 資料備份</div>
+      <span class="chev">▾</span>
+    </div>
+    <div id="c-backup-bd" class="c-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <label for="import-file-input" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:16px 8px;border-radius:13px;border:1.5px solid var(--border);cursor:pointer;background:var(--bg2);font-size:13px;text-align:center;">
+          <span style="font-size:22px;">📥</span>
+          <span>匯入 JSON</span>
+          <span style="font-size:11px;color:var(--faint);">點擊選擇檔案</span>
+          <input type="file" id="import-file-input" accept=".json,application/json" style="display:none;" onchange="importData(this)"/>
+        </label>
+        <button onclick="exportData()" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:16px 8px;border-radius:13px;border:1.5px solid var(--border);cursor:pointer;background:var(--bg2);font-size:13px;font-family:inherit;"><span style="font-size:22px;">📤</span>匯出 JSON</button>
+      </div>
     </div>
   </div>
   <div id="import-status" style="display:none;margin-bottom:12px;padding:14px 16px;border-radius:14px;font-size:13px;line-height:1.6;"></div>
   <div class="glass card-p mb12">
-    <div class="sb mb12"><div class="sec-title" style="margin-bottom:0;">👥 我的人際圈</div><button class="btn btn-pr btn-sm" style="padding:7px 14px;font-size:13px;" onclick="showAddPerson()">＋ 新增</button></div>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">名單會出現在記錄頁「朋友」選項中</div>
-    <div id="people-list"></div>
-    <div id="add-person-form" style="display:none;margin-top:11px;padding-top:11px;border-top:1px solid var(--border);">
-      <label class="field-label">姓名 / 稱呼</label>
-      <input id="new-person" placeholder="例：小明、媽媽" style="margin-bottom:10px;"/>
-      <div class="row"><button class="btn btn-ghost btn-sm" onclick="hideAddPerson()">取消</button><button class="btn btn-pr btn-sm" onclick="addPerson()">新增</button></div>
+    <div class="c-toggle" data-card="c-people" onclick="toggleCard('c-people')">
+      <div class="sec-title" style="margin-bottom:0;">👥 我的人際圈</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button class="btn btn-pr btn-sm" style="padding:7px 14px;font-size:13px;" onclick="showAddPerson();event.stopPropagation()">＋ 新增</button>
+        <span class="chev">▾</span>
+      </div>
+    </div>
+    <div id="c-people-bd" class="c-body">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">名單會出現在記錄頁「朋友」選項中</div>
+      <div id="people-list"></div>
+      <div id="add-person-form" style="display:none;margin-top:11px;padding-top:11px;border-top:1px solid var(--border);">
+        <label class="field-label">姓名 / 稱呼</label>
+        <input id="new-person" placeholder="例：小明、媽媽" style="margin-bottom:10px;"/>
+        <div class="row"><button class="btn btn-ghost btn-sm" onclick="hideAddPerson()">取消</button><button class="btn btn-pr btn-sm" onclick="addPerson()">新增</button></div>
+      </div>
     </div>
   </div>
   <div class="glass card-p mb12">
-    <div class="sec-title">🎯 因子管理</div>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">點選類別可編輯顏色、圖示與細項</div>
-    <div id="cat-manager-list"></div>
-    <div id="cat-editor" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
-      <div style="font-size:13px;font-weight:600;margin-bottom:10px;" id="cat-editor-title"></div>
-      <div class="col">
-        <div>
-          <label class="field-label">圖示</label>
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-            <input id="ce-icon" maxlength="4" style="width:60px;text-align:center;font-size:20px;background-size:cover;background-position:center;"/>
-            <button type="button" onclick="openImagePicker('ce-icon')" style="font-size:11px;padding:5px 10px;border-radius:8px;border:1.5px solid var(--border);background:var(--bg2);color:var(--muted);cursor:pointer;font-family:inherit;white-space:nowrap;">📁 上傳圖示</button>
+    <div class="c-toggle" data-card="c-cats" onclick="toggleCard('c-cats')">
+      <div class="sec-title" style="margin-bottom:0;">🎯 因子管理</div>
+      <span class="chev">▾</span>
+    </div>
+    <div id="c-cats-bd" class="c-body">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">點選類別可編輯顏色、圖示與細項</div>
+      <div id="cat-manager-list"></div>
+      <div id="cat-editor" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
+        <div style="font-size:13px;font-weight:600;margin-bottom:10px;" id="cat-editor-title"></div>
+        <div class="col">
+          <div>
+            <label class="field-label">圖示</label>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+              <input id="ce-icon" maxlength="4" style="width:60px;text-align:center;font-size:20px;background-size:cover;background-position:center;"/>
+              <button type="button" onclick="openImagePicker('ce-icon')" style="font-size:11px;padding:5px 10px;border-radius:8px;border:1.5px solid var(--border);background:var(--bg2);color:var(--muted);cursor:pointer;font-family:inherit;white-space:nowrap;">📁 上傳圖示</button>
+            </div>
+            <div id="ce-emoji-row" style="display:flex;flex-wrap:wrap;gap:2px;margin-top:4px;"></div>
           </div>
-          <div id="ce-emoji-row" style="display:flex;flex-wrap:wrap;gap:2px;margin-top:4px;"></div>
-        </div>
-        <div><label class="field-label">名稱</label><input id="ce-name"/></div>
-        <div>
-          <label class="field-label">顏色</label>
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:4px;">
-            <div id="ce-colors" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
-            <input type="color" id="ce-color-picker" value="#536070" oninput="pickCEColor(null,this.value)" title="自訂顏色"/>
+          <div><label class="field-label">名稱</label><input id="ce-name"/></div>
+          <div>
+            <label class="field-label">顏色</label>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:4px;">
+              <div id="ce-colors" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+              <input type="color" id="ce-color-picker" value="#536070" oninput="pickCEColor(null,this.value)" title="自訂顏色"/>
+            </div>
+          </div>
+          <div>
+            <label class="field-label">細項清單</label>
+            <div id="ce-subs" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px;"></div>
+            <div style="display:flex;gap:6px;"><input id="ce-new-sub" placeholder="新增細項…"/><button class="btn btn-pr btn-sm" onclick="addCatSub()">＋</button></div>
           </div>
         </div>
-        <div>
-          <label class="field-label">細項清單</label>
-          <div id="ce-subs" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px;"></div>
-          <div style="display:flex;gap:6px;"><input id="ce-new-sub" placeholder="新增細項…"/><button class="btn btn-pr btn-sm" onclick="addCatSub()">＋</button></div>
+        <div style="display:flex;gap:8px;margin-top:12px;align-items:center;">
+          <button class="btn btn-ghost btn-sm" onclick="closeCatEditor()">取消</button>
+          <button class="btn btn-pr btn-sm" onclick="saveCatEditor()">儲存</button>
+          <div style="flex:1;"></div>
+          <button id="ce-delete-btn" class="btn-danger" style="width:auto;padding:8px 12px;font-size:13px;" onclick="deleteCat()">刪除</button>
         </div>
       </div>
-      <div style="display:flex;gap:8px;margin-top:12px;align-items:center;">
-        <button class="btn btn-ghost btn-sm" onclick="closeCatEditor()">取消</button>
-        <button class="btn btn-pr btn-sm" onclick="saveCatEditor()">儲存</button>
-        <div style="flex:1;"></div>
-        <button id="ce-delete-btn" class="btn-danger" style="width:auto;padding:8px 12px;font-size:13px;" onclick="deleteCat()">刪除</button>
-      </div>
     </div>
   </div>
   <div class="glass card-p mb12">
-    <div class="sec-title">🤖 AI Analysis (Groq)</div>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">在 <b>console.groq.com</b> 免費申請 API Key</div>
-    <label class="field-label">Groq API Key</label>
-    <input id="p-groq" type="password" placeholder="gsk_…" style="font-family:monospace;font-size:13px;"/>
+    <div class="c-toggle" data-card="c-groq" onclick="toggleCard('c-groq')">
+      <div class="sec-title" style="margin-bottom:0;">🤖 AI Analysis (Groq)</div>
+      <span class="chev">▾</span>
+    </div>
+    <div id="c-groq-bd" class="c-body">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">在 <b>console.groq.com</b> 免費申請 API Key</div>
+      <label class="field-label">Groq API Key</label>
+      <input id="p-groq" type="password" placeholder="gsk_…" style="font-family:monospace;font-size:13px;"/>
+    </div>
   </div>
   <div class="glass card-p mb12">
-    <div class="sec-title">☁️ 跨裝置同步 (GitHub Gist)</div>
-    <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.7;">
-      與 iPhone 雙向同步。需要 GitHub Personal Access Token 與 Gist ID。
-      <a href="https://github.com/settings/tokens" target="_blank" style="color:var(--pr);">申請 Token →</a>
+    <div class="c-toggle" data-card="c-gist" onclick="toggleCard('c-gist')">
+      <div class="sec-title" style="margin-bottom:0;">☁️ 跨裝置同步 (GitHub Gist)</div>
+      <span class="chev">▾</span>
     </div>
-    <div class="col mb12">
-      <div>
-        <label class="field-label">GitHub Token</label>
-        <input id="gist-token" type="password" placeholder="ghp_..." style="font-family:monospace;font-size:13px;"/>
+    <div id="c-gist-bd" class="c-body">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.7;">
+        與 iPhone 雙向同步。需要 GitHub Personal Access Token 與 Gist ID。
+        <a href="https://github.com/settings/tokens" target="_blank" style="color:var(--pr);">申請 Token →</a>
       </div>
-      <div>
-        <label class="field-label">Gist ID</label>
-        <input id="gist-id" placeholder="從 gist.github.com URL 複製"/>
+      <div class="col mb12">
+        <div>
+          <label class="field-label">GitHub Token</label>
+          <input id="gist-token" type="password" placeholder="ghp_..." style="font-family:monospace;font-size:13px;"/>
+        </div>
+        <div>
+          <label class="field-label">Gist ID</label>
+          <input id="gist-id" placeholder="從 gist.github.com URL 複製"/>
+        </div>
       </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <button class="btn btn-ghost" onclick="gistPush()" style="font-size:13px;">📤 推送到 Gist</button>
+        <button class="btn btn-ghost" onclick="gistPull()" style="font-size:13px;">📥 從 Gist 拉取</button>
+      </div>
+      <div id="gist-status" style="display:none;margin-top:10px;font-size:12px;padding:8px 12px;border-radius:10px;"></div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-      <button class="btn btn-ghost" onclick="gistPush()" style="font-size:13px;">📤 推送到 Gist</button>
-      <button class="btn btn-ghost" onclick="gistPull()" style="font-size:13px;">📥 從 Gist 拉取</button>
-    </div>
-    <div id="gist-status" style="display:none;margin-top:10px;font-size:12px;padding:8px 12px;border-radius:10px;"></div>
   </div>
   <button class="btn btn-pr mb12" id="save-btn" onclick="saveProfile()">儲存設定</button>
   <div class="glass card-p" style="border-color:rgba(160,90,80,.18);">
-    <div class="sec-title" style="color:var(--rose);">🗑 資料管理</div>
-    <div style="font-size:13px;color:var(--muted);margin-bottom:11px;">示範資料是第一次打開時自動產生的。</div>
-    <button class="btn-danger mb8" onclick="clearDemo()">清除示範資料（保留我的記錄）</button>
-    <button class="btn-danger" style="color:#8A3828;" onclick="clearAll()">清除所有記錄（不可還原）</button>
+    <div class="c-toggle" data-card="c-danger" onclick="toggleCard('c-danger')">
+      <div class="sec-title" style="color:var(--rose);margin-bottom:0;">🗑 資料管理</div>
+      <span class="chev">▾</span>
+    </div>
+    <div id="c-danger-bd" class="c-body">
+      <div style="font-size:13px;color:var(--muted);margin-bottom:11px;">示範資料是第一次打開時自動產生的。</div>
+      <button class="btn-danger mb8" onclick="clearDemo()">清除示範資料（保留我的記錄）</button>
+      <button class="btn-danger" style="color:#8A3828;" onclick="clearAll()">清除所有記錄（不可還原）</button>
+    </div>
   </div>
 </div>
 
@@ -420,6 +459,26 @@ input[type=color]::-webkit-color-swatch{border:none;border-radius:50%;}
 <script>
 'use strict';
 const KEY='wellness_v5';
+function toggleCard(id){
+  const h=document.querySelector('[data-card="'+id+'"]');
+  const b=document.getElementById(id+'-bd');
+  if(!h||!b)return;
+  h.classList.toggle('coll');
+  b.classList.toggle('coll');
+  const st=JSON.parse(localStorage.getItem('md_card_st')||'{}');
+  st[id]=h.classList.contains('coll');
+  localStorage.setItem('md_card_st',JSON.stringify(st));
+}
+function initCardStates(){
+  const st=JSON.parse(localStorage.getItem('md_card_st')||'{}');
+  Object.entries(st).forEach(([id,c])=>{
+    if(!c)return;
+    const h=document.querySelector('[data-card="'+id+'"]');
+    const b=document.getElementById(id+'-bd');
+    if(h)h.classList.add('coll');
+    if(b)b.classList.add('coll');
+  });
+}
 const EMOTIONS=['平靜','喜悅','感恩','焦慮','疲憊','孤獨','充實','迷茫','愛','憤怒','希望','壓力','失落','無力','沒有特別感受'];
 const CAT_COLORS=['#536070','#588068','#8A7848','#A07068','#7870A0','#686878','#6B8070','#907060','#507878','#806880'];
 const EMOJIS=['🌤','🌧','❄️','☀️','💚','💤','🏃','💼','🎵','🍜','🧘','✈️','📚','🎨','🏠','💰','❤️','🌿','🎯','🌙','⚡','🔥','🎭','🧠','🌊','🎪','🧩','🌺'];
@@ -541,7 +600,7 @@ function openDayModal(y,m,d){
   const es=DB.entries.filter(e=>{const dt=new Date(e.timestamp);return dt.getFullYear()===y&&dt.getMonth()===m-1&&dt.getDate()===d;}).sort((a,b)=>new Date(a.timestamp)-new Date(b.timestamp));
   document.getElementById('modal-title').textContent=y+'年'+m+'月'+d+'日';
   const cats=getCats();
-  let body=es.length?es.map(e=>{const mi=moodInfo(e.moodScore);const factors=(e.impactFactors||[]).map(f=>{const col=cats[f.category]?.color||'#888';return`<span style="font-size:11px;padding:2px 8px;border-radius:100px;background:${col}18;color:${col};">${cats[f.category]?.icon||''} ${f.detail}</span>`;}).join('');const tags=(e.emotionTags||[]).map(t=>`<span style="font-size:11px;padding:2px 8px;border-radius:100px;background:var(--pr-bg);color:var(--pr-d);">${t}</span>`).join('');return`<div style="padding:14px;border-radius:14px;background:var(--bg2);margin-bottom:10px;"><div class="sb mb8"><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:24px;">${mi.emoji}</span><span style="font-size:20px;font-weight:700;color:${mi.hex};">${e.moodScore}/10</span><span style="font-size:12px;color:var(--muted);">${new Date(e.timestamp).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'})}</span></div><div style="display:flex;gap:6px;"><button onclick="editEntry('${e.id}')" style="font-size:13px;padding:4px 10px;border-radius:8px;border:1px solid var(--border);background:transparent;cursor:pointer;color:var(--muted);font-family:inherit;">編輯</button><button class="e-del" onclick="delEntryModal('${e.id}')">🗑</button></div></div>${tags?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">${tags}</div>`:''}${factors?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">${factors}</div>`:''}${e.notes?`<div style="font-size:13px;line-height:1.6;padding-top:6px;border-top:1px solid var(--border);white-space:pre-wrap;">${e.notes}</div>`:''}</div>`;}).join(''):'<div style="text-align:center;padding:20px;color:var(--muted);font-size:14px;">這天沒有記錄</div>';
+  let body=es.length?es.map(e=>{const mi=moodInfo(e.moodScore);const factors=(e.impactFactors||[]).map(f=>{const col=cats[f.category]?.color||'#888';return`<span style="font-size:11px;padding:2px 8px;border-radius:100px;background:${col}18;color:${col};">${cats[f.category]?.icon||''} ${f.detail}</span>`;}).join('');const tags=(e.emotionTags||[]).map(t=>`<span style="font-size:11px;padding:2px 8px;border-radius:100px;background:var(--pr-bg);color:var(--pr-d);">${t}</span>`).join('');return`<div style="padding:14px;border-radius:14px;background:var(--bg2);margin-bottom:10px;"><div class="sb mb8"><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:24px;">${mi.emoji}</span><span style="font-size:20px;font-weight:700;color:${mi.hex};">${e.moodScore}/10</span><span style="font-size:12px;color:var(--muted);">${new Date(e.timestamp).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'})}</span></div><div style="display:flex;gap:6px;"><button onclick="editEntry('${e.id}')" style="font-size:13px;padding:4px 10px;border-radius:8px;border:1px solid var(--border);background:transparent;cursor:pointer;color:var(--muted);font-family:inherit;">編輯</button><button class="e-del" onclick="delEntryModal('${e.id}')">🗑</button></div></div>${tags?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">${tags}</div>`:''}${factors?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">${factors}</div>`:''}${e.notes?`<div style="font-size:13px;line-height:1.6;padding-top:6px;border-top:1px solid var(--border);">${e.notes}</div>`:''}</div>`;}).join(''):'<div style="text-align:center;padding:20px;color:var(--muted);font-size:14px;">這天沒有記錄</div>';
   body+=`<button class="btn btn-ghost" onclick="closeModal();openTrackerWithDate(${y},${m},${d});" style="margin-top:8px;">＋ 補記這天</button>`;
   document.getElementById('modal-body').innerHTML=body;
   document.getElementById('modal-bg').style.display='flex';
@@ -723,31 +782,8 @@ function saveEntry(){
 function resetTracker(dateStr){selEmotions=[];selFactors=[];activeCat=null;newCatColor=CAT_COLORS[0];document.getElementById('slider').value=5;document.getElementById('notes').value='';updateSlider();initTracker(dateStr||null);goStep(0);}
 
 // ── REFLECT ──
-let aiScope=7,reflectDays=7;
+let aiScope=7;
 function setScope(d,el){aiScope=d;document.querySelectorAll('#ai-scope-row .chip').forEach(b=>b.className='chip');el.className='chip sel';}
-function setReflectFilter(d,el){reflectDays=d;document.querySelectorAll('#reflect-time-filter .chip').forEach(b=>b.className='chip');el.className='chip sel';renderInsights();}
-function hdDecisionAdvice(auth){const m={'骶骨 (Sacral)':'等待骶骨直覺回應（「嗯」或「不」），身體的第一反應即是答案。','情感 (Emotional)':'等待情緒波動平穩再決策，避免在高峰或低谷時做重大選擇。','脾臟 (Splenic)':'信任當下的直覺，脾臟的感知只出現一次，留意第一個念頭。','自我投射 (Self-Projected)':'透過說話來釐清，找信任的人聆聽，聽自己說話的聲音找答案。','心臟 (Ego)':'問自己「我真正想要什麼？」，只為自己的意志承諾，不為取悅他人。','心智 (Mental)':'透過與信任的環境互動獲得清晰，觀察並記錄你的感受變化。','月亮週期 (Lunar)':'等待完整的 28 天月亮週期，透過觀察心情日記確認選擇。'};return m[auth]||'依循內在直覺，給自己時間與空間做決定。';}
-function buildFactorAccordion(entries){
-  const cats=getCats();const catMap={};
-  entries.forEach(e=>(e.impactFactors||[]).forEach(f=>{
-    if(!catMap[f.category])catMap[f.category]={count:0,high:0,low:0,label:cats[f.category]?.label||f.category,color:cats[f.category]?.color||'#888',icon:cats[f.category]?.icon||'',subs:{}};
-    catMap[f.category].count++;
-    if(e.moodScore>=7)catMap[f.category].high++;
-    else if(e.moodScore<=3)catMap[f.category].low++;
-    if(f.detail){const k=f.detail;if(!catMap[f.category].subs[k])catMap[f.category].subs[k]={count:0,high:0,low:0};catMap[f.category].subs[k].count++;if(e.moodScore>=7)catMap[f.category].subs[k].high++;else if(e.moodScore<=3)catMap[f.category].subs[k].low++;}
-  }));
-  const items=Object.entries(catMap).sort(([,a],[,b])=>b.count-a.count);
-  if(!items.length)return'<div style="font-size:13px;color:var(--faint);text-align:center;padding:8px 0;">尚無資料</div>';
-  return items.map(([catKey,cat],idx)=>{
-    const pH=cat.high/cat.count,pL=cat.low/cat.count;
-    let sLabel,sColor,sIcon;
-    if(pH>=.5){sLabel='助力';sColor='#588068';sIcon='↑';}else if(pL>=.5){sLabel='負向';sColor='#A07068';sIcon='↓';}else{sLabel='中性';sColor='#8A7848';sIcon='—';}
-    const subItems=Object.entries(cat.subs).sort(([,a],[,b])=>b.count-a.count);
-    const subsHtml=subItems.length?subItems.map(([sub,sv])=>{const spH=sv.high/sv.count,spL=sv.low/sv.count;let ss,sc,si;if(spH>=.5){ss='助力';sc='#588068';si='↑';}else if(spL>=.5){ss='負向';sc='#A07068';si='↓';}else{ss='中性';sc='#8A7848';si='—';}return`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0 6px 12px;border-bottom:1px solid var(--border);"><span style="font-size:13px;">${sub}</span><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:11px;color:var(--faint);">${sv.count}次</span><span style="font-size:12px;font-weight:600;color:${sc};">${si} ${ss}</span></div></div>`;}).join(''):'<div style="font-size:12px;color:var(--faint);padding:6px 12px;">無細項記錄</div>';
-    const aid='fac-acc-'+idx;
-    return`<div style="border-bottom:1px solid var(--border);"><button class="accordion-btn" onclick="var b=document.getElementById('${aid}');b.classList.toggle('open');this.querySelector('.arr').textContent=b.classList.contains('open')?'▲':'▼'"><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:15px;">${cat.icon}</span><span style="font-size:14px;font-weight:500;">${cat.label}</span><span style="font-size:11px;color:var(--faint);">${cat.count}次</span></div><div style="display:flex;align-items:center;gap:6px;"><span style="font-size:12px;font-weight:600;color:${sColor};">${sIcon} ${sLabel}</span><span class="arr" style="font-size:10px;color:var(--faint);">▼</span></div></button><div class="accordion-body" id="${aid}" style="padding:0 0 8px 0;">${subsHtml}</div></div>`;
-  }).join('');
-}
 function renderInsights(){
   document.getElementById('ins-warn').innerHTML=buildWarn();
   const body=document.getElementById('ins-body');const all=DB.entries;
@@ -755,18 +791,22 @@ function renderInsights(){
   const sorted=[...all].sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp));
   const l3=sorted.slice(0,3);const l3avg=l3.length?(l3.reduce((s,e)=>s+e.moodScore,0)/l3.length).toFixed(1):'--';
   const allLow=l3.length===3&&l3.every(e=>e.moodScore<=3);
-  const allAvg=all.length?(all.reduce((s,e)=>s+e.moodScore,0)/all.length).toFixed(1):'--';
-  const filtered=reflectDays?all.filter(e=>(new Date()-new Date(e.timestamp))/86400000<=reflectDays):all;
-  const useEntries=filtered.length?filtered:all;
-  const cats=getCats();
-  const best=useEntries.reduce((a,b)=>a.moodScore>b.moodScore?a:b,useEntries[0]);
-  const worst=useEntries.reduce((a,b)=>a.moodScore<b.moodScore?a:b,useEntries[0]);
-  const auth=DB.profile.hdAuthority||'';
-  const criteriaHtml=`<div style="margin-top:12px;padding:10px 12px;background:var(--bg2);border-radius:12px;font-size:13px;line-height:1.8;color:var(--ink2);"><div style="font-size:10px;font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">評斷基準</div><div>✅ 可行：近3天均分 ≥ 5，且無連續低落</div><div>⚠️ 暫緩：近3天連續 3 天心情 ≤ 3</div><div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);display:flex;justify-content:space-between;"><span style="color:var(--muted);">整體均分</span><span style="font-weight:600;">${allAvg} / 10</span></div>${auth?`<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);"><div style="font-size:11px;color:var(--lavender);font-weight:700;letter-spacing:.04em;margin-bottom:4px;">🌌 人類圖決策建議</div><div style="font-size:12px;color:var(--muted);">${hdDecisionAdvice(auth)}</div></div>`:''}</div>`;
-  const filterBtns=`<div id="reflect-time-filter" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;"><button class="chip${reflectDays===7?' sel':''}" onclick="setReflectFilter(7,this)">一週</button><button class="chip${reflectDays===14?' sel':''}" onclick="setReflectFilter(14,this)">二週</button><button class="chip${reflectDays===30?' sel':''}" onclick="setReflectFilter(30,this)">本月</button><button class="chip${reflectDays===60?' sel':''}" onclick="setReflectFilter(60,this)">上月</button><button class="chip${reflectDays===180?' sel':''}" onclick="setReflectFilter(180,this)">半年</button></div>`;
-  const decisionRows=[['近3天均分',l3avg+'分'],['建議決策',allLow?'⚠️ 暫緩':'✅ 可行'],['人類圖策略',DB.profile.hdStrategy||'未設定'],['內在權威',auth||'未設定']].map(([l,v])=>`<div class="sb" style="padding:9px 0;border-bottom:1px solid var(--border);"><span style="font-size:13px;color:var(--muted);">${l}</span><span style="font-size:13px;font-weight:500;">${v}</span></div>`).join('');
-  body.innerHTML=`<div class="glass card-p mb12"><div class="sec-title">🧭 決策狀態</div>${decisionRows}${criteriaHtml}</div>${filterBtns}<div class="two-col mb12"><div class="glass" style="padding:15px;"><div style="font-size:11px;color:var(--muted);margin-bottom:6px;">🏆 Best Day</div><div style="font-size:26px;">${moodInfo(best.moodScore).emoji}</div><div style="font-size:19px;font-weight:700;color:#588068;">${best.moodScore}/10</div><div style="font-size:11px;color:var(--muted);margin-top:2px;">${new Date(best.timestamp).toLocaleDateString('zh-TW',{month:'numeric',day:'numeric'})}</div><div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:6px;">${(best.impactFactors||[]).map(f=>{const col=cats[f.category]?.color||'#888';return`<span style="font-size:10px;padding:2px 7px;border-radius:100px;background:${col}18;color:${col};">${f.detail}</span>`;}).join('')}</div></div><div class="glass" style="padding:15px;"><div style="font-size:11px;color:var(--muted);margin-bottom:6px;">💤 Lowest Day</div><div style="font-size:26px;">${moodInfo(worst.moodScore).emoji}</div><div style="font-size:19px;font-weight:700;color:#A07068;">${worst.moodScore}/10</div><div style="font-size:11px;color:var(--muted);margin-top:2px;">${new Date(worst.timestamp).toLocaleDateString('zh-TW',{month:'numeric',day:'numeric'})}</div><div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:6px;">${(worst.impactFactors||[]).map(f=>{const col=cats[f.category]?.color||'#888';return`<span style="font-size:10px;padding:2px 7px;border-radius:100px;background:${col}18;color:${col};">${f.detail}</span>`;}).join('')}</div></div></div><div class="glass card-p mb12"><div class="sec-title">🔍 因子影響分析</div><div style="font-size:12px;color:var(--muted);margin-bottom:12px;">點選類別展開細節，了解正向/負向影響因子</div>${buildFactorAccordion(useEntries)}</div><div class="glass card-p"><div class="sb mb12"><div class="sec-title" style="margin-bottom:0;">✨ AI Analysis</div><button id="ai-run-btn" class="btn btn-pr btn-sm" onclick="runAI()">分析</button></div><div id="ai-scope-row" style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;"><button class="chip sel" onclick="setScope(7,this)">近7天</button><button class="chip" onclick="setScope(30,this)">近30天</button><button class="chip" onclick="setScope(0,this)">全部</button></div><div id="ai-no-key" style="display:none;font-size:13px;color:var(--muted);text-align:center;padding:10px 0;">請先在 Settings 中設定 Groq API Key</div><div id="ai-loading" style="display:none;text-align:center;padding:20px 0;"><div class="pulse" style="font-size:24px;margin-bottom:8px;">✨</div><div style="font-size:13px;color:var(--muted);">AI 分析中…</div></div><div id="ai-result" style="font-size:14px;line-height:1.8;display:none;white-space:pre-wrap;"></div><div id="ai-error" style="display:none;font-size:13px;color:var(--rose);padding:10px;background:var(--rose-bg);border-radius:10px;"></div><div id="ai-empty" style="font-size:13px;color:var(--muted);text-align:center;padding:12px 0;">點擊「分析」，AI 將根據你的記錄生成洞察 🌿</div></div>`;
+  const best=all.reduce((a,b)=>a.moodScore>b.moodScore?a:b,all[0]);const worst=all.reduce((a,b)=>a.moodScore<b.moodScore?a:b,all[0]);
+  const freq=computeFreq();const cats=getCats();
+  const impH=Object.entries(freq).sort(([,a],[,b])=>b.count-a.count).map(([cat,val])=>{const pct=Math.min(+(val.count/all.length*100).toFixed(0),100);const subs=Object.entries(val.subs).sort(([,a],[,b])=>b-a).slice(0,3).map(([s,n])=>`<span style="font-size:11px;color:var(--muted);background:var(--bg3);border-radius:100px;padding:2px 10px;">${s}(${n})</span>`).join('');return`<div style="margin-bottom:13px;"><div class="sb mb8"><span style="font-size:13px;">${cats[cat]?.icon||''} ${val.label}</span><span style="font-size:12px;color:var(--muted);">${val.count}次</span></div><div class="bar-bg"><div class="bar-fill" style="width:${pct}%;background:${val.color};"></div></div>${subs?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;">${subs}</div>`:''}</div>`;}).join('');
+  const sentH=buildFactorSentiment();
+  body.innerHTML=`<div class="glass card-p mb12"><div class="sec-title">🧭 決策狀態</div>${[['近3天均分',l3avg+'分'],['建議決策',allLow?'⚠️ 暫緩':'✅ 可行'],['人類圖策略',DB.profile.hdStrategy||'未設定'],['內在權威',DB.profile.hdAuthority||'未設定']].map(([l,v])=>`<div class="sb" style="padding:9px 0;border-bottom:1px solid var(--border);"><span style="font-size:13px;color:var(--muted);">${l}</span><span style="font-size:13px;font-weight:500;">${v}</span></div>`).join('')}</div>
+  <div class="two-col"><div class="glass" style="padding:15px;"><div style="font-size:11px;color:var(--muted);margin-bottom:6px;">🏆 Best Day</div><div style="font-size:26px;">${moodInfo(best.moodScore).emoji}</div><div style="font-size:19px;font-weight:700;color:#588068;">${best.moodScore}/10</div><div style="font-size:11px;color:var(--muted);margin-top:2px;">${new Date(best.timestamp).toLocaleDateString('zh-TW',{month:'numeric',day:'numeric'})}</div><div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:6px;">${(best.impactFactors||[]).map(f=>{const col=cats[f.category]?.color||'#888';return`<span style="font-size:10px;padding:2px 7px;border-radius:100px;background:${col}18;color:${col};">${f.detail}</span>`;}).join('')}</div></div><div class="glass" style="padding:15px;"><div style="font-size:11px;color:var(--muted);margin-bottom:6px;">💤 Lowest Day</div><div style="font-size:26px;">${moodInfo(worst.moodScore).emoji}</div><div style="font-size:19px;font-weight:700;color:#A07068;">${worst.moodScore}/10</div><div style="font-size:11px;color:var(--muted);margin-top:2px;">${new Date(worst.timestamp).toLocaleDateString('zh-TW',{month:'numeric',day:'numeric'})}</div><div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:6px;">${(worst.impactFactors||[]).map(f=>{const col=cats[f.category]?.color||'#888';return`<span style="font-size:10px;padding:2px 7px;border-radius:100px;background:${col}18;color:${col};">${f.detail}</span>`;}).join('')}</div></div></div>
+  <div class="glass card-p mb12"><div class="sec-title">🎯 影響因子排行</div>${impH||'<div style="font-size:13px;color:var(--muted);">尚無資料</div>'}</div>
+  <div class="glass card-p mb12"><div class="sec-title">🔍 Factor Sentiment</div><div style="font-size:12px;color:var(--muted);margin-bottom:12px;">各因子細項對你情緒的影響傾向</div>${sentH}</div>
+  <div class="glass card-p"><div class="sb mb12"><div class="sec-title" style="margin-bottom:0;">✨ AI Analysis</div><button id="ai-run-btn" class="btn btn-pr btn-sm" onclick="runAI()">分析</button></div><div id="ai-scope-row" style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;"><button class="chip sel" onclick="setScope(7,this)">近7天</button><button class="chip" onclick="setScope(30,this)">近30天</button><button class="chip" onclick="setScope(0,this)">全部</button></div><div id="ai-no-key" style="display:none;font-size:13px;color:var(--muted);text-align:center;padding:10px 0;">請先在 Settings 中設定 Groq API Key</div><div id="ai-loading" style="display:none;text-align:center;padding:20px 0;"><div class="pulse" style="font-size:24px;margin-bottom:8px;">✨</div><div style="font-size:13px;color:var(--muted);">AI 分析中…</div></div><div id="ai-result" style="font-size:14px;line-height:1.8;display:none;white-space:pre-wrap;"></div><div id="ai-error" style="display:none;font-size:13px;color:var(--rose);padding:10px;background:var(--rose-bg);border-radius:10px;"></div><div id="ai-empty" style="font-size:13px;color:var(--muted);text-align:center;padding:12px 0;">點擊「分析」，AI 將根據你的記錄生成洞察 🌿</div></div>`;
 }
+function buildFactorSentiment(){
+  const all=getCats();const map={};
+  DB.entries.forEach(e=>(e.impactFactors||[]).forEach(f=>{if(!f.detail)return;const k=f.category+'||'+f.detail;if(!map[k])map[k]={category:f.category,detail:f.detail,count:0,sum:0,low:0,high:0};map[k].count++;map[k].sum+=e.moodScore;if(e.moodScore<=3)map[k].low++;if(e.moodScore>=7)map[k].high++;}));
+  const items=Object.values(map).filter(v=>v.count>=2).sort((a,b)=>b.count-a.count);
+  if(!items.length)return'<div style="font-size:13px;color:var(--faint);text-align:center;padding:8px 0;">記錄 2 筆以上後才會顯示趨勢</div>';
+  return items.map(v=>{const avg=(v.sum/v.count).toFixed(1);const col=all[v.category]?.color||'#888';const pH=v.high/v.count,pL=v.low/v.count;let s,sc,si;if(pH>=.5){s='助力';sc='#588068';si='↑';}else if(pL>=.5){s='負向';sc='#A07068';si='↓';}else{s='中性';sc='#8A7848';si='—';}const wL=Math.round(pL*100),wH=Math.round(pH*100),wM=100-wL-wH;return`<div style="margin-bottom:13px;padding-bottom:13px;border-bottom:1px solid var(--border);"><div class="sb mb8"><div style="display:flex;align-items:center;gap:6px;"><span style="font-size:11px;padding:2px 8px;border-radius:100px;background:${col}15;color:${col};">${all[v.category]?.icon||''} ${all[v.category]?.label||v.category}</span><span style="font-size:13px;font-weight:500;">${v.detail}</span></div><span style="font-size:12px;font-weight:600;color:${sc};">${si} ${s}</span></div><div style="display:flex;height:5px;border-radius:3px;overflow:hidden;gap:1px;margin-bottom:5px;"><div style="width:${wL}%;background:#A07068;"></div><div style="width:${wM}%;background:var(--bg3);"></div><div style="width:${wH}%;background:#588068;"></div></div><div style="display:flex;justify-content:space-between;font-size:10px;color:var(--faint);"><span>負向 ${v.low}</span><span>均分 ${avg}</span><span>助力 ${v.high}</span></div></div>`;}).join('')+'<div style="display:flex;gap:12px;font-size:11px;color:var(--faint);justify-content:center;margin-top:4px;"><span style="color:#A07068;">■ 負向</span><span style="color:var(--bg3);">■ 中性</span><span style="color:#588068;">■ 助力</span></div>';}
 
 async function runAI(){
   const key=localStorage.getItem('groq_key')||'';const noKey=document.getElementById('ai-no-key');const loading=document.getElementById('ai-loading');const result=document.getElementById('ai-result');const errEl=document.getElementById('ai-error');const empty=document.getElementById('ai-empty');const btn=document.getElementById('ai-run-btn');
@@ -872,6 +912,7 @@ function loadProfile(){
   renderPeople();renderCatManager();
   const er=document.getElementById('ce-emoji-row');if(er)er.innerHTML=EMOJIS.map(e=>`<button type="button" onclick="setCEIcon('${e}')" style="font-size:17px;background:none;border:none;cursor:pointer;padding:3px;">${e}</button>`).join('');
   const cd=document.getElementById('ce-colors');if(cd)cd.innerHTML=CAT_COLORS.map((col,i)=>`<div class="color-dot" style="background:${col};" onclick="pickCEColor(this,'${col}')"></div>`).join('');
+  initCardStates();
 }
 function renderPeople(){const p=DB.profile.people||[];document.getElementById('people-list').innerHTML=p.length?p.map(pr=>`<div class="person-row"><span style="font-size:15px;">👤</span><span style="flex:1;font-size:14px;">${pr.name}</span><button class="icon-btn" onclick="removePerson('${pr.id}')">✕</button></div>`).join(''):'<div style="font-size:13px;color:var(--faint);text-align:center;padding:10px 0;">尚未新增任何人</div>';}
 function showAddPerson(){document.getElementById('add-person-form').style.display='block';}
