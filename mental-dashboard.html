@@ -45,6 +45,16 @@ input[type=color]::-webkit-color-swatch{border:none;border-radius:50%;}
 .chip{display:inline-block;padding:7px 15px;border-radius:100px;font-size:13px;cursor:pointer;transition:all .18s;border:1.5px solid var(--border);font-family:inherit;background:transparent;color:var(--ink2);}
 .chip.sel{background:var(--pr);color:#fff;border-color:var(--pr);}
 .chip-wrap{display:flex;flex-wrap:wrap;gap:7px;}
+.chip-custom{display:inline-flex;align-items:center;gap:5px;padding:7px 10px 7px 15px;border-radius:100px;font-size:13px;cursor:pointer;border:1.5px solid var(--border);background:transparent;color:var(--ink2);transition:all .18s;}
+.chip-custom.sel{background:var(--pr);color:#fff;border-color:var(--pr);}
+.chip-custom .chip-rm{font-size:11px;opacity:.5;cursor:pointer;line-height:1;padding:1px 2px;}
+.chip-custom .chip-rm:hover{opacity:1;}
+.chip-add{display:inline-flex;align-items:center;padding:7px 14px;border-radius:100px;font-size:13px;cursor:pointer;border:1.5px dashed var(--border);background:transparent;color:var(--muted);font-family:inherit;}
+.chip-add:hover{border-color:var(--pr);color:var(--pr);}
+.emo-add-row{display:flex;align-items:center;gap:8px;margin-top:10px;}
+.emo-add-input{flex:1;padding:7px 13px;border-radius:100px;border:1.5px solid var(--border);background:var(--bg2);font-size:13px;color:var(--ink);font-family:inherit;}
+.emo-add-input:focus{outline:none;border-color:var(--pr);}
+.emo-add-confirm{padding:7px 14px;border-radius:100px;border:none;background:var(--pr);color:#fff;font-size:13px;cursor:pointer;font-family:inherit;}
 .prog-row{display:flex;gap:5px;margin-bottom:22px;}
 .seg{flex:1;}
 .pbar{height:3px;border-radius:3px;background:var(--bg3);transition:background .3s;}
@@ -184,7 +194,13 @@ input[type=color]::-webkit-color-swatch{border:none;border-radius:50%;}
   </div>
   <div id="s1" style="display:none;">
     <div style="font-size:14px;color:var(--muted);margin-bottom:13px;">選擇今天的情緒標籤（可多選）</div>
-    <div class="chip-wrap mb20" id="emotion-chips"></div>
+    <div class="chip-wrap mb12" id="emotion-chips"></div>
+    <div class="emo-add-row" id="emo-add-row" style="display:none;">
+      <input class="emo-add-input" id="emo-add-input" placeholder="輸入自訂標籤…" maxlength="10"
+        onkeydown="if(event.key==='Enter')confirmEmoAdd();if(event.key==='Escape')cancelEmoAdd();">
+      <button class="emo-add-confirm" onclick="confirmEmoAdd()">新增</button>
+    </div>
+    <div style="margin-bottom:8px;"></div>
     <div class="row"><button class="btn btn-ghost btn-sm" onclick="goStep(0)">← 返回</button><button class="btn btn-pr" onclick="goStep(2)">下一步 →</button></div>
   </div>
   <div id="s2" style="display:none;">
@@ -504,6 +520,45 @@ function initCardStates(){
   });
 }
 const EMOTIONS=['平靜','喜悅','感恩','焦慮','疲憊','孤獨','充實','迷茫','愛','憤怒','希望','壓力','失落','無力','沒有特別感受'];
+const CUSTOM_EMO_KEY='mental_custom_emotions';
+function getCustomEmos(){try{const a=JSON.parse(localStorage.getItem(CUSTOM_EMO_KEY)||'[]');return Array.isArray(a)?a:[];}catch{return[];}}
+function saveCustomEmos(arr){localStorage.setItem(CUSTOM_EMO_KEY,JSON.stringify(arr));}
+function renderEmotionChips(){
+  const el=document.getElementById('emotion-chips');
+  if(!el)return;
+  const customs=getCustomEmos();
+  const allDefault=EMOTIONS.map(t=>`<button class="chip${selEmotions.includes(t)?' sel':''}" id="ec-${t}" onclick="toggleEmo('${t}')">${t}</button>`).join('');
+  const allCustom=customs.map((t,i)=>`<span class="chip-custom${selEmotions.includes(t)?' sel':''}" id="ec-${t}" onclick="toggleEmoCustom('${t}',this)"><span>${t}</span><span class="chip-rm" onclick="removeCustomEmo(${i},event)">✕</span></span>`).join('');
+  const addBtn=`<button class="chip-add" onclick="openEmoAdd()">＋ 自訂</button>`;
+  el.innerHTML=allDefault+allCustom+addBtn;
+}
+function toggleEmoCustom(t,el){
+  const i=selEmotions.indexOf(t);
+  i>-1?selEmotions.splice(i,1):selEmotions.push(t);
+  el.className='chip-custom'+(selEmotions.includes(t)?' sel':'');
+}
+function openEmoAdd(){document.getElementById('emo-add-row').style.display='flex';document.getElementById('emo-add-input').value='';document.getElementById('emo-add-input').focus();}
+function cancelEmoAdd(){document.getElementById('emo-add-row').style.display='none';}
+function confirmEmoAdd(){
+  const val=document.getElementById('emo-add-input').value.trim();
+  if(!val){cancelEmoAdd();return;}
+  const arr=getCustomEmos();
+  if(!EMOTIONS.includes(val)&&!arr.includes(val)){arr.push(val);saveCustomEmos(arr);}
+  cancelEmoAdd();
+  renderEmotionChips();
+  // 新增後自動選取
+  const newEl=document.getElementById('ec-'+val);
+  if(newEl&&!selEmotions.includes(val)){selEmotions.push(val);newEl.className='chip-custom sel';}
+}
+function removeCustomEmo(idx,e){
+  e.stopPropagation();
+  const arr=getCustomEmos();
+  const removed=arr[idx];
+  arr.splice(idx,1);saveCustomEmos(arr);
+  const si=selEmotions.indexOf(removed);
+  if(si>-1)selEmotions.splice(si,1);
+  renderEmotionChips();
+}
 const CAT_COLORS=['#536070','#588068','#8A7848','#A07068','#7870A0','#686878','#6B8070','#907060','#507878','#806880'];
 const EMOJIS=['🌤','🌧','❄️','☀️','💚','💤','🏃','💼','🎵','🍜','🧘','✈️','📚','🎨','🏠','💰','❤️','🌿','🎯','🌙','⚡','🔥','🎭','🧠','🌊','🎪','🧩','🌺'];
 const DEFAULT_CATS={
@@ -723,7 +778,7 @@ function initTracker(dateOverride){
   const todayStr=new Date().toISOString().split('T')[0];
   const el=document.getElementById('entry-date-input');
   if(el){el.value=ts;el.max=todayStr;}
-  document.getElementById('emotion-chips').innerHTML=EMOTIONS.map(t=>`<button class="chip" id="ec-${t}" onclick="toggleEmo('${t}')">${t}</button>`).join('');
+  renderEmotionChips();
   const er=document.getElementById('new-cat-emoji-row');
   if(er)er.innerHTML=EMOJIS.map(e=>`<button type="button" onclick="setNewCatIcon('${e}')" style="font-size:18px;background:none;border:none;cursor:pointer;padding:3px;">${e}</button>`).join('');
   const cd=document.getElementById('color-dots');
@@ -809,7 +864,7 @@ function softReset(){
   document.getElementById('notes').value='';
   entryDate=new Date();updateDateLabel();
   // Re-render emotion chips preserving current selections
-  document.getElementById('emotion-chips').innerHTML=EMOTIONS.map(t=>`<button class="chip${selEmotions.includes(t)?' sel':''}" id="ec-${t}" onclick="toggleEmo('${t}')">${t}</button>`).join('');
+  renderEmotionChips();
   // Re-render category row (preserves activeCat highlight via styleBtn)
   renderCatRow();
   // Re-render selected factors summary
