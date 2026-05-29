@@ -687,14 +687,20 @@ function openDayModal(y,m,d){
 }
 function delEntryModal(id){if(!confirm('確定刪除？'))return;DB.entries=DB.entries.filter(e=>e.id!==id);persist();closeModal();renderHome();}
 function editEntry(id){
-  const e=DB.entries.find(x=>x.id===id); if(!e)return;
+  const e=DB.entries.find(x=>x.id===id);if(!e)return;
   const cats=getCats();
+  // Init editFactors; for friends, detect free-text entries
+  const people=DB.profile?.people||[];
+  editFactors=(e.impactFactors||[]).map(f=>{
+    if(f.category==='friends'&&f.detail&&!people.some(p=>p.name===f.detail))return{...f,isFree:true};
+    return{...f};
+  });
   const tagsHtml=EMOTIONS.map(t=>{
     const sel=(e.emotionTags||[]).includes(t);
     return`<button type="button" onclick="toggleEditTag(this,'${t}')" data-tag="${t}" style="display:inline-block;padding:5px 12px;border-radius:100px;font-size:12px;cursor:pointer;border:1.5px solid ${sel?'var(--pr)':'var(--border)'};background:${sel?'var(--pr)':'transparent'};color:${sel?'#fff':'var(--ink2)'};margin:2px;font-family:inherit;">${t}</button>`;
   }).join('');
   const factorsHtml=Object.entries(cats).map(([k,cat])=>{
-    const sel=(e.impactFactors||[]).some(f=>f.category===k);
+    const sel=editFactors.some(f=>f.category===k);
     return`<button type="button" onclick="toggleEditCat(this,'${k}')" data-cat="${k}" style="display:inline-block;padding:5px 12px;border-radius:100px;font-size:12px;cursor:pointer;border:1.5px solid ${sel?cat.color:'var(--border)'};background:${sel?cat.color:'transparent'};color:${sel?'#fff':'var(--ink2)'};margin:2px;font-family:inherit;white-space:nowrap;">${cat.icon} ${cat.label}</button>`;
   }).join('');
   document.getElementById('modal-body').innerHTML=`
@@ -714,6 +720,7 @@ function editEntry(id){
       <div>
         <label style="font-size:10px;color:var(--faint);font-weight:600;letter-spacing:.08em;text-transform:uppercase;display:block;margin-bottom:6px;">影響因子</label>
         <div style="display:flex;flex-wrap:wrap;gap:4px;">${factorsHtml}</div>
+        <div id="edit-factor-subs" style="margin-top:8px;display:flex;flex-direction:column;gap:8px;"></div>
       </div>
       <div>
         <label style="font-size:10px;color:var(--faint);font-weight:600;letter-spacing:.08em;text-transform:uppercase;display:block;margin-bottom:6px;">筆記</label>
@@ -724,6 +731,7 @@ function editEntry(id){
         <button onclick="saveEditEntry('${id}')" style="flex:2;padding:12px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--pr),var(--pr-d));color:#fff;font-family:inherit;font-size:14px;font-weight:500;cursor:pointer;">儲存</button>
       </div>
     </div>`;
+  renderEditSubAll();
 }
 function updateEditSlider(el){
   const s=+el.value,mi=moodInfo(s);
@@ -741,17 +749,57 @@ function toggleEditTag(btn,tag){
 function toggleEditCat(btn,cat){
   const cats=getCats();const col=cats[cat]?.color||'var(--pr)';
   const on=btn.style.background==='transparent'||btn.style.background==='';
-  btn.style.background=on?col:'transparent';
-  btn.style.color=on?'#fff':'var(--ink2)';
-  btn.style.borderColor=on?col:'var(--border)';
+  if(on){btn.style.background=col;btn.style.color='#fff';btn.style.borderColor=col;}
+  else{btn.style.background='transparent';btn.style.color='var(--ink2)';btn.style.borderColor='var(--border)';editFactors=editFactors.filter(f=>f.category!==cat);}
+  renderEditSubAll();
+}
+function renderEditSubAll(){
+  const container=document.getElementById('edit-factor-subs');if(!container)return;
+  const cats=getCats();
+  const selected=[...document.querySelectorAll('[data-cat]')].filter(b=>b.style.background!=='transparent'&&b.style.background!=='').map(b=>b.dataset.cat);
+  container.innerHTML=selected.map(cat=>renderEditSubSection(cat,cats)).join('');
+}
+function renderEditSubSection(cat,cats){
+  const catDef=cats[cat];if(!catDef)return'';
+  const ss='margin-top:0;padding:10px 12px;background:var(--bg2);border-radius:10px;border:1px solid var(--border);';
+  const lbl=`<div style="font-size:11px;color:var(--faint);margin-bottom:6px;">${catDef.icon||''} ${catDef.label}</div>`;
+  if(cat==='friends'){
+    const people=DB.profile?.people||[];
+    const pHtml=people.length?people.map(p=>{const sel=editFactors.some(f=>f.category==='friends'&&f.detail===p.name&&!f.isFree);const pE=p.name.replace(/'/g,"\\'");return`<button class="chip${sel?' sel':''}" onclick="toggleEditPerson('${p.id}','${pE}')" style="margin:2px;">👤 ${p.name}</button>`;}).join(''):`<span style="font-size:12px;color:var(--faint);">可在 Settings 新增人物</span>`;
+    const curFree=editFactors.find(f=>f.category==='friends'&&f.isFree);
+    return`<div style="${ss}">${lbl}<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">${pHtml}</div><input id="edit-friend-free" placeholder="或自由填寫…" value="${curFree?curFree.detail:''}" oninput="updateEditFriendFree(this.value)" style="width:100%;box-sizing:border-box;background:var(--bg);border:1.5px solid var(--border);border-radius:8px;padding:6px 10px;font-size:13px;color:var(--ink);font-family:inherit;"/></div>`;
+  }else if(catDef.sub&&catDef.sub.length){
+    const subHtml=catDef.sub.map(s=>{const sel=editFactors.some(f=>f.category===cat&&f.detail===s);const sE=s.replace(/'/g,"\\'");return`<button class="chip${sel?' sel':''}" onclick="toggleEditSubChip('${cat}','${sE}')" style="margin:2px;">${s}</button>`;}).join('');
+    return`<div style="${ss}">${lbl}<div style="display:flex;flex-wrap:wrap;gap:4px;">${subHtml}</div></div>`;
+  }else{
+    const cur=editFactors.find(f=>f.category===cat);const catE=cat.replace(/'/g,"\\'");
+    return`<div style="${ss}">${lbl}<input id="edit-custom-${cat}" placeholder="描述發生了什麼…" value="${cur?cur.detail:''}" oninput="updateEditCustom('${catE}',this.value)" style="width:100%;box-sizing:border-box;background:var(--bg);border:1.5px solid var(--border);border-radius:8px;padding:6px 10px;font-size:13px;color:var(--ink);font-family:inherit;"/></div>`;
+  }
+}
+function toggleEditPerson(pid,name){
+  const idx=editFactors.findIndex(f=>f.category==='friends'&&f.detail===name&&!f.isFree);
+  if(idx>-1)editFactors.splice(idx,1);else editFactors.push({category:'friends',detail:name});
+  renderEditSubAll();
+}
+function updateEditFriendFree(v){
+  editFactors=editFactors.filter(f=>!(f.category==='friends'&&f.isFree));
+  if(v.trim())editFactors.push({category:'friends',detail:v.trim(),isFree:true});
+}
+function toggleEditSubChip(cat,sub){
+  const idx=editFactors.findIndex(f=>f.category===cat&&f.detail===sub);
+  if(idx>-1)editFactors.splice(idx,1);else editFactors.push({category:cat,detail:sub});
+  renderEditSubAll();
+}
+function updateEditCustom(cat,v){
+  editFactors=editFactors.filter(f=>f.category!==cat);
+  if(v.trim())editFactors.push({category:cat,detail:v.trim()});
 }
 function saveEditEntry(id){
   const e=DB.entries.find(x=>x.id===id);if(!e)return;
   e.moodScore=+document.getElementById('edit-slider').value;
   e.notes=document.getElementById('edit-notes').value;
   e.emotionTags=[...document.querySelectorAll('#edit-tags button')].filter(b=>b.style.background!=='transparent'&&b.style.background!=='').map(b=>b.dataset.tag);
-  const cats=getCats();
-  e.impactFactors=[...document.querySelectorAll('[data-cat]')].filter(b=>b.style.background!=='transparent'&&b.style.background!=='').map(b=>({category:b.dataset.cat,detail:cats[b.dataset.cat]?.label||b.dataset.cat}));
+  e.impactFactors=editFactors.map(f=>({category:f.category,detail:f.detail}));
   persist();closeModal();renderHome();
 }
 function closeModal(){document.getElementById('modal-bg').style.display='none';}
@@ -771,6 +819,7 @@ function buildWarn(){const s=[...DB.entries].sort((a,b)=>new Date(b.timestamp)-n
 
 // ── TRACKER ──
 let selEmotions=[],selFactors=[],activeCat=null,newCatColor=CAT_COLORS[0],entryDate=new Date();
+let editFactors=[];
 
 function initTracker(dateOverride){
   entryDate=dateOverride?new Date(dateOverride+'T12:00:00'):new Date();
