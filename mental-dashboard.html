@@ -111,8 +111,34 @@ input[type=color]::-webkit-color-swatch{border:none;border-radius:50%;}
 .c-toggle.coll .chev{transform:rotate(-90deg);}
 .c-body{overflow:hidden;max-height:900px;transition:max-height .32s cubic-bezier(.4,0,.2,1),opacity .25s;opacity:1;margin-top:12px;}
 .c-body.coll{max-height:0!important;opacity:0;margin-top:0;}
+/* ── IFRAME MODE（嵌入 SAS Hub 時自動套用）── */
+html.in-iframe #nav{display:none;}
+html.in-iframe .view{padding:12px 12px 20px;}
+html.in-iframe #app{max-width:none;}
+html.in-iframe .glass{border-radius:12px;}
+html.in-iframe .card-p{padding:13px 14px;}
+html.in-iframe h1{font-size:17px!important;margin-bottom:2px!important;}
+html.in-iframe .sec-title{font-size:11px;margin-bottom:9px;}
+html.in-iframe .btn{padding:10px 14px;font-size:13px;border-radius:11px;}
+html.in-iframe input,html.in-iframe textarea,html.in-iframe select{font-size:13px;padding:9px 12px;border-radius:10px;}
+html.in-iframe .chip{padding:5px 11px;font-size:12px;}
+html.in-iframe .chip-add{padding:5px 12px;font-size:12px;}
+html.in-iframe .nb .ni{font-size:18px;}
+html.in-iframe #s-emoji{font-size:44px!important;}
+html.in-iframe #s-num{font-size:54px!important;}
+html.in-iframe .modal-box{padding:16px 14px 28px;}
+html.in-iframe .cal-day{font-size:11px;}
+html.in-iframe .accordion-btn{font-size:13px;}
+html.in-iframe #home-stats .glass{padding:9px 8px!important;}
+html.in-iframe #home-stats [style*="font-size:22px"]{font-size:15px!important;}
+html.in-iframe #home-today [style*="font-size:34px"]{font-size:22px!important;}
+html.in-iframe #home-today [style*="font-size:22px"]{font-size:16px!important;}
+html.in-iframe .mb20{margin-bottom:10px;}
+html.in-iframe .mb16{margin-bottom:10px;}
+html.in-iframe .mb12{margin-bottom:8px;}
 </style>
 </head>
+<script>(function(){if(window!==window.top)document.documentElement.classList.add('in-iframe');})();</script>
 <body>
 <div id="app">
 
