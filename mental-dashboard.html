@@ -365,18 +365,20 @@ input[type=color]::-webkit-color-swatch{border:none;border-radius:50%;}
     <div class="c-toggle" data-card="c-people" onclick="toggleCard('c-people')">
       <div class="sec-title" style="margin-bottom:0;">👥 我的人際圈</div>
       <div style="display:flex;align-items:center;gap:8px;">
-        <button class="btn btn-pr btn-sm" style="padding:7px 14px;font-size:13px;" onclick="showAddPerson();event.stopPropagation()">＋ 新增</button>
+        <div id="people-add-trigger">
+          <button class="btn btn-pr btn-sm" style="padding:7px 14px;font-size:13px;" onclick="showAddPerson();event.stopPropagation()">＋ 新增</button>
+        </div>
+        <div id="people-inline-form" style="display:none;align-items:center;gap:6px;" onclick="event.stopPropagation()">
+          <input id="new-person" placeholder="姓名 / 稱呼" style="width:120px;min-width:0;margin:0;padding:7px 10px;font-size:13px;border-radius:8px;" onkeydown="if(event.key==='Enter')addPerson()"/>
+          <button class="btn btn-pr btn-sm" style="padding:7px 12px;font-size:13px;white-space:nowrap;" onclick="addPerson();event.stopPropagation()">新增</button>
+          <button class="btn btn-ghost btn-sm" style="padding:7px 10px;font-size:13px;" onclick="hideAddPerson();event.stopPropagation()">✕</button>
+        </div>
         <span class="chev">▾</span>
       </div>
     </div>
     <div id="c-people-bd" class="c-body">
       <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">名單會出現在記錄頁「朋友」選項中</div>
       <div id="people-list"></div>
-      <div id="add-person-form" style="display:none;margin-top:11px;padding-top:11px;border-top:1px solid var(--border);">
-        <label class="field-label">姓名 / 稱呼</label>
-        <input id="new-person" placeholder="例：小明、媽媽" style="margin-bottom:10px;"/>
-        <div class="row"><button class="btn btn-ghost btn-sm" onclick="hideAddPerson()">取消</button><button class="btn btn-pr btn-sm" onclick="addPerson()">新增</button></div>
-      </div>
     </div>
   </div>
   <div class="glass card-p mb12">
@@ -1089,8 +1091,18 @@ function loadProfile(){
   initCardStates();
 }
 function renderPeople(){const p=DB.profile.people||[];document.getElementById('people-list').innerHTML=p.length?p.map(pr=>`<div class="person-row"><span style="font-size:15px;">👤</span><span style="flex:1;font-size:14px;">${pr.name}</span><button class="icon-btn" onclick="removePerson('${pr.id}')">✕</button></div>`).join(''):'<div style="font-size:13px;color:var(--faint);text-align:center;padding:10px 0;">尚未新增任何人</div>';}
-function showAddPerson(){document.getElementById('add-person-form').style.display='block';}
-function hideAddPerson(){document.getElementById('add-person-form').style.display='none';document.getElementById('new-person').value='';}
+function showAddPerson(){
+  document.getElementById('people-add-trigger').style.display='none';
+  const f=document.getElementById('people-inline-form');
+  f.style.display='flex';
+  if(document.getElementById('c-people-bd').classList.contains('coll')) toggleCard('c-people');
+  setTimeout(()=>document.getElementById('new-person').focus(),60);
+}
+function hideAddPerson(){
+  document.getElementById('people-inline-form').style.display='none';
+  document.getElementById('people-add-trigger').style.display='';
+  document.getElementById('new-person').value='';
+}
 function addPerson(){const name=document.getElementById('new-person').value.trim();if(!name)return;if(!DB.profile.people)DB.profile.people=[];DB.profile.people.push({id:'p_'+Date.now(),name});persist();hideAddPerson();renderPeople();}
 function removePerson(id){DB.profile.people=DB.profile.people.filter(p=>p.id!==id);persist();renderPeople();}
 function toggleVis(id,btn){const el=document.getElementById(id);if(!el)return;el.type=el.type==='password'?'text':'password';btn.textContent=el.type==='password'?'👁':'🙈';}
