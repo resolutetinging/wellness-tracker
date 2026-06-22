@@ -388,24 +388,19 @@ html.in-iframe .mb12{margin-bottom:8px;}
   </div>
   <div id="import-status" style="display:none;margin-bottom:12px;padding:14px 16px;border-radius:14px;font-size:13px;line-height:1.6;"></div>
   <div class="glass card-p mb12">
-    <div class="c-toggle" data-card="c-people" onclick="toggleCard('c-people')">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
       <div class="sec-title" style="margin-bottom:0;">👥 我的人際圈</div>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <div id="people-add-trigger">
-          <button class="btn btn-pr btn-sm" style="padding:7px 14px;font-size:13px;" onclick="showAddPerson();event.stopPropagation()">＋ 新增</button>
-        </div>
-        <div id="people-inline-form" style="display:none;align-items:center;gap:6px;" onclick="event.stopPropagation()">
-          <input id="new-person" placeholder="姓名 / 稱呼" style="width:120px;min-width:0;margin:0;padding:7px 10px;font-size:13px;border-radius:8px;" onkeydown="if(event.key==='Enter')addPerson()"/>
-          <button class="btn btn-pr btn-sm" style="padding:7px 12px;font-size:13px;white-space:nowrap;" onclick="addPerson();event.stopPropagation()">新增</button>
-          <button class="btn btn-ghost btn-sm" style="padding:7px 10px;font-size:13px;" onclick="hideAddPerson();event.stopPropagation()">✕</button>
-        </div>
-        <span class="chev">▾</span>
+      <div id="people-add-trigger">
+        <button class="btn btn-pr btn-sm" style="padding:7px 14px;font-size:13px;" onclick="showAddPerson()">＋ 新增</button>
+      </div>
+      <div id="people-inline-form" style="display:none;align-items:center;gap:6px;">
+        <input id="new-person" placeholder="姓名 / 稱呼" style="width:120px;min-width:0;margin:0;padding:7px 10px;font-size:13px;border-radius:8px;" onkeydown="if(event.key==='Enter')addPerson()"/>
+        <button class="btn btn-pr btn-sm" style="padding:7px 12px;font-size:13px;white-space:nowrap;" onclick="addPerson()">新增</button>
+        <button class="btn btn-ghost btn-sm" style="padding:7px 10px;font-size:13px;" onclick="hideAddPerson()">✕</button>
       </div>
     </div>
-    <div id="c-people-bd" class="c-body">
-      <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">名單會出現在記錄頁「朋友」選項中</div>
-      <div id="people-list"></div>
-    </div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">名單會出現在記錄頁「朋友」選項中</div>
+    <div id="people-list"></div>
   </div>
   <div class="glass card-p mb12">
     <div class="c-toggle" data-card="c-cats" onclick="toggleCard('c-cats')">
@@ -542,6 +537,7 @@ function initCardStates(){
   const st=JSON.parse(localStorage.getItem('md_card_st')||'{}');
   Object.entries(st).forEach(([id,c])=>{
     if(!c)return;
+    if(id==='c-people')return; // 人際圈永遠展開，不套折疊狀態
     const h=document.querySelector('[data-card="'+id+'"]');
     const b=document.getElementById(id+'-bd');
     if(h)h.classList.add('coll');
@@ -732,8 +728,13 @@ function editEntry(id){
     const sel=editFactors.some(f=>f.category===k);
     return`<button type="button" onclick="toggleEditCat(this,'${k}')" data-cat="${k}" style="display:inline-block;padding:5px 12px;border-radius:100px;font-size:12px;cursor:pointer;border:1.5px solid ${sel?cat.color:'var(--border)'};background:${sel?cat.color:'transparent'};color:${sel?'#fff':'var(--ink2)'};margin:2px;font-family:inherit;white-space:nowrap;">${cat.icon} ${cat.label}</button>`;
   }).join('');
+  const eDateStr=new Date(e.timestamp).toISOString().split('T')[0];
   document.getElementById('modal-body').innerHTML=`
     <div style="display:flex;flex-direction:column;gap:14px;">
+      <div>
+        <label style="font-size:10px;color:var(--faint);font-weight:600;letter-spacing:.08em;text-transform:uppercase;display:block;margin-bottom:6px;">記錄日期</label>
+        <input type="date" id="edit-date" value="${eDateStr}" style="width:100%;box-sizing:border-box;font-family:inherit;background:var(--bg2);border:1.5px solid var(--border);border-radius:12px;padding:10px 14px;font-size:14px;color:var(--ink);outline:none;"/>
+      </div>
       <div>
         <label style="font-size:10px;color:var(--faint);font-weight:600;letter-spacing:.08em;text-transform:uppercase;display:block;margin-bottom:6px;">心情分數</label>
         <div style="display:flex;align-items:center;gap:12px;">
@@ -829,6 +830,13 @@ function saveEditEntry(id){
   e.notes=document.getElementById('edit-notes').value;
   e.emotionTags=[...document.querySelectorAll('#edit-tags button')].filter(b=>b.style.background!=='transparent'&&b.style.background!=='').map(b=>b.dataset.tag);
   e.impactFactors=editFactors.map(f=>({category:f.category,detail:f.detail}));
+  const newDateStr=document.getElementById('edit-date')?.value;
+  if(newDateStr){
+    const orig=new Date(e.timestamp);
+    const nd=new Date(newDateStr+'T12:00:00');
+    nd.setHours(orig.getHours(),orig.getMinutes(),orig.getSeconds(),0);
+    e.timestamp=nd.toISOString();
+  }
   persist();closeModal();renderHome();
 }
 function closeModal(){document.getElementById('modal-bg').style.display='none';}
@@ -1116,12 +1124,44 @@ function loadProfile(){
   const cd=document.getElementById('ce-colors');if(cd)cd.innerHTML=CAT_COLORS.map((col,i)=>`<div class="color-dot" style="background:${col};" onclick="pickCEColor(this,'${col}')"></div>`).join('');
   initCardStates();
 }
-function renderPeople(){const p=DB.profile.people||[];document.getElementById('people-list').innerHTML=p.length?p.map(pr=>`<div class="person-row"><span style="font-size:15px;">👤</span><span style="flex:1;font-size:14px;">${pr.name}</span><button class="icon-btn" onclick="removePerson('${pr.id}')">✕</button></div>`).join(''):'<div style="font-size:13px;color:var(--faint);text-align:center;padding:10px 0;">尚未新增任何人</div>';}
+function renderPeople(){
+  const p=DB.profile.people||[];
+  const el=document.getElementById('people-list');
+  if(!el)return;
+  el.innerHTML=p.length?p.map(pr=>{
+    const safe=pr.name.replace(/'/g,"\\'");
+    return`<div class="person-row" id="pr-${pr.id}">
+      <span style="font-size:15px;">👤</span>
+      <span style="flex:1;font-size:14px;">${pr.name}</span>
+      <button class="icon-btn" style="font-size:11px;padding:3px 8px;border-radius:6px;width:auto;color:var(--muted);border:1px solid var(--border);background:var(--bg2);" onclick="startEditPerson('${pr.id}','${safe}')">改名</button>
+      <button class="icon-btn" onclick="removePerson('${pr.id}')">✕</button>
+    </div>`;
+  }).join(''):'<div style="font-size:13px;color:var(--faint);text-align:center;padding:10px 0;">尚未新增任何人</div>';
+}
+function startEditPerson(id,name){
+  const row=document.getElementById('pr-'+id);
+  if(!row)return;
+  row.innerHTML=`
+    <span style="font-size:15px;">👤</span>
+    <input id="ep-${id}" value="${name}" style="flex:1;min-width:0;margin:0 6px 0 0;padding:5px 8px;font-size:13px;border-radius:8px;border:1.5px solid var(--pr);background:var(--bg);color:var(--ink);font-family:inherit;" onkeydown="if(event.key==='Enter')saveEditPerson('${id}');if(event.key==='Escape')renderPeople()"/>
+    <button class="btn btn-pr btn-sm" style="padding:5px 10px;font-size:12px;" onclick="saveEditPerson('${id}')">確認</button>
+    <button class="btn btn-ghost btn-sm" style="padding:5px 8px;font-size:12px;" onclick="renderPeople()">取消</button>`;
+  setTimeout(()=>{const inp=document.getElementById('ep-'+id);if(inp){inp.focus();inp.select();}},30);
+}
+function saveEditPerson(id){
+  const inp=document.getElementById('ep-'+id);
+  if(!inp)return;
+  const name=inp.value.trim();
+  if(!name)return;
+  const p=DB.profile.people||[];
+  const idx=p.findIndex(x=>x.id===id);
+  if(idx>-1)p[idx].name=name;
+  persist();renderPeople();
+}
 function showAddPerson(){
   document.getElementById('people-add-trigger').style.display='none';
   const f=document.getElementById('people-inline-form');
   f.style.display='flex';
-  if(document.getElementById('c-people-bd').classList.contains('coll')) toggleCard('c-people');
   setTimeout(()=>document.getElementById('new-person').focus(),60);
 }
 function hideAddPerson(){
