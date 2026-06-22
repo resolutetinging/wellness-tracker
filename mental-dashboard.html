@@ -1133,9 +1133,12 @@ function loadProfile(){
 }
 function _personRowHtml(pr){
   const safe=pr.name.replace(/'/g,"\\'");
+  const cats=DB.profile.peopleCats||[];
+  const catSel=cats.length?`<select style="font-size:11px;padding:3px 6px;border-radius:6px;border:1px solid var(--border);background:var(--bg2);color:var(--muted);margin:0;max-width:76px;cursor:pointer;" onchange="setPersonCat('${pr.id}',this.value)"><option value=""${!pr.catId?' selected':''}>未分類</option>${cats.map(c=>`<option value="${c.id}"${pr.catId===c.id?' selected':''}>${c.name}</option>`).join('')}</select>`:'';
   return`<div class="person-row" id="pr-${pr.id}">
     <span style="font-size:15px;">👤</span>
     <span style="flex:1;font-size:14px;">${pr.name}</span>
+    ${catSel}
     <button class="icon-btn" style="font-size:11px;padding:3px 8px;border-radius:6px;width:auto;color:var(--muted);border:1px solid var(--border);background:var(--bg2);" onclick="startEditPerson('${pr.id}','${safe}')">改名</button>
     <button class="icon-btn" onclick="removePerson('${pr.id}')">✕</button>
   </div>`;
@@ -1282,6 +1285,13 @@ function saveEditPerson(id){
   persist();renderPeople();
 }
 function removePerson(id){DB.profile.people=DB.profile.people.filter(p=>p.id!==id);persist();renderPeople();}
+function setPersonCat(id,catId){
+  const p=DB.profile.people||[];
+  const idx=p.findIndex(x=>x.id===id);
+  if(idx<0)return;
+  if(catId)p[idx].catId=catId;else delete p[idx].catId;
+  persist();renderPeople();
+}
 function toggleVis(id,btn){const el=document.getElementById(id);if(!el)return;el.type=el.type==='password'?'text':'password';btn.textContent=el.type==='password'?'👁':'🙈';}
 function saveProfile(){const gk=document.getElementById('p-groq').value.trim();if(gk)localStorage.setItem('groq_key',gk);persist();const btn=document.getElementById('save-btn');btn.textContent='✓ 已儲存';setTimeout(()=>btn.textContent='儲存設定',2500);}
 function exportData(){const blob=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`wellness_${new Date().toISOString().split('T')[0]}.json`;a.click();URL.revokeObjectURL(url);}
