@@ -91,6 +91,13 @@ input[type=color]::-webkit-color-swatch{border:none;border-radius:50%;}
 .color-dot.sel{border-color:var(--ink)!important;}
 .person-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);}
 .person-row:last-child{border-bottom:none;}
+.pcat-hd{display:flex;align-items:center;gap:6px;padding:9px 0 8px;cursor:pointer;border-bottom:1px solid var(--border);user-select:none;}
+.pcat-name{flex:1;font-size:13px;font-weight:600;color:var(--ink);}
+.pcat-count{font-size:11px;color:var(--faint);min-width:24px;}
+.pcat-chev{font-size:10px;color:var(--muted);transition:transform .2s;display:inline-block;min-width:10px;}
+.pcat-hd.coll .pcat-chev{transform:rotate(-90deg);}
+.pcat-group:last-child .pcat-hd{border-bottom:none;}
+.pcat-add-row{border-bottom:none!important;padding-top:4px;}
 .icon-btn{background:none;border:none;cursor:pointer;color:var(--faint);font-size:15px;padding:4px 6px;border-radius:6px;}
 /* CALENDAR */
 .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;}
@@ -388,16 +395,14 @@ html.in-iframe .mb12{margin-bottom:8px;}
   </div>
   <div id="import-status" style="display:none;margin-bottom:12px;padding:14px 16px;border-radius:14px;font-size:13px;line-height:1.6;"></div>
   <div class="glass card-p mb12">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
       <div class="sec-title" style="margin-bottom:0;">👥 我的人際圈</div>
-      <div id="people-add-trigger">
-        <button class="btn btn-pr btn-sm" style="padding:7px 14px;font-size:13px;" onclick="showAddPerson()">＋ 新增</button>
-      </div>
-      <div id="people-inline-form" style="display:none;align-items:center;gap:6px;">
-        <input id="new-person" placeholder="姓名 / 稱呼" style="width:120px;min-width:0;margin:0;padding:7px 10px;font-size:13px;border-radius:8px;" onkeydown="if(event.key==='Enter')addPerson()"/>
-        <button class="btn btn-pr btn-sm" style="padding:7px 12px;font-size:13px;white-space:nowrap;" onclick="addPerson()">新增</button>
-        <button class="btn btn-ghost btn-sm" style="padding:7px 10px;font-size:13px;" onclick="hideAddPerson()">✕</button>
-      </div>
+      <button class="btn btn-pr btn-sm" style="padding:7px 14px;font-size:13px;" onclick="showAddPeopleCat()">＋ 新增分類</button>
+    </div>
+    <div id="people-cat-inline" style="display:none;margin-bottom:10px;padding:10px 12px;background:var(--bg2);border-radius:10px;align-items:center;gap:6px;flex-wrap:wrap;">
+      <input id="new-cat-name" placeholder="分類名稱（如：家人、同事）" style="flex:1;min-width:100px;margin:0;padding:7px 10px;font-size:13px;border-radius:8px;" onkeydown="if(event.key==='Enter')addPeopleCat();if(event.key==='Escape')hideAddPeopleCat()"/>
+      <button class="btn btn-pr btn-sm" style="padding:7px 12px;font-size:13px;" onclick="addPeopleCat()">新增</button>
+      <button class="btn btn-ghost btn-sm" style="padding:7px 10px;font-size:13px;" onclick="hideAddPeopleCat()">✕</button>
     </div>
     <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">名單會出現在記錄頁「朋友」選項中</div>
     <div id="people-list"></div>
@@ -607,10 +612,12 @@ const HD_CENTERS=[
 // ── DATA ──
 let DB=loadDB();
 function loadDB(){try{return JSON.parse(localStorage.getItem(KEY))||freshDB();}catch{return freshDB();}}
-function freshDB(){return{profile:{hdType:'',hdProfile:'',hdDefinition:'',hdAuthority:'',hdStrategy:'',hdNotSelf:'',hdCross:'',hdParseResult:'',people:[]},entries:[],customCats:[],catOverrides:{}};}
+function freshDB(){return{profile:{hdType:'',hdProfile:'',hdDefinition:'',hdAuthority:'',hdStrategy:'',hdNotSelf:'',hdCross:'',hdParseResult:'',people:[],peopleCats:[]},entries:[],customCats:[],catOverrides:{}};}
 function persist(){localStorage.setItem(KEY,JSON.stringify(DB));}
 if(!DB.profile.people)DB.profile.people=[];
+if(!DB.profile.peopleCats)DB.profile.peopleCats=[];
 if(!DB.customCats)DB.customCats=[];
+var _pcatCollapsed={};
 if(!DB.catOverrides)DB.catOverrides={};
 function getCats(){const b={};Object.entries(DEFAULT_CATS).forEach(([k,v])=>{b[k]={...v,...(DB.catOverrides[k]||{})};});DB.customCats.forEach(c=>b[c.id]=c);return b;}
 
@@ -1124,20 +1131,136 @@ function loadProfile(){
   const cd=document.getElementById('ce-colors');if(cd)cd.innerHTML=CAT_COLORS.map((col,i)=>`<div class="color-dot" style="background:${col};" onclick="pickCEColor(this,'${col}')"></div>`).join('');
   initCardStates();
 }
+function _personRowHtml(pr){
+  const safe=pr.name.replace(/'/g,"\\'");
+  return`<div class="person-row" id="pr-${pr.id}">
+    <span style="font-size:15px;">👤</span>
+    <span style="flex:1;font-size:14px;">${pr.name}</span>
+    <button class="icon-btn" style="font-size:11px;padding:3px 8px;border-radius:6px;width:auto;color:var(--muted);border:1px solid var(--border);background:var(--bg2);" onclick="startEditPerson('${pr.id}','${safe}')">改名</button>
+    <button class="icon-btn" onclick="removePerson('${pr.id}')">✕</button>
+  </div>`;
+}
 function renderPeople(){
-  const p=DB.profile.people||[];
+  const people=DB.profile.people||[];
+  const cats=DB.profile.peopleCats||[];
   const el=document.getElementById('people-list');
   if(!el)return;
-  el.innerHTML=p.length?p.map(pr=>{
-    const safe=pr.name.replace(/'/g,"\\'");
-    return`<div class="person-row" id="pr-${pr.id}">
-      <span style="font-size:15px;">👤</span>
-      <span style="flex:1;font-size:14px;">${pr.name}</span>
-      <button class="icon-btn" style="font-size:11px;padding:3px 8px;border-radius:6px;width:auto;color:var(--muted);border:1px solid var(--border);background:var(--bg2);" onclick="startEditPerson('${pr.id}','${safe}')">改名</button>
-      <button class="icon-btn" onclick="removePerson('${pr.id}')">✕</button>
+  let html='';
+  // 各分類群組
+  cats.forEach(cat=>{
+    const safeCat=cat.name.replace(/'/g,"\\'");
+    const group=people.filter(pr=>pr.catId===cat.id);
+    const isC=!!_pcatCollapsed[cat.id];
+    html+=`<div class="pcat-group" id="pcg-${cat.id}">
+      <div class="pcat-hd${isC?' coll':''}" onclick="togglePeopleCat('${cat.id}')">
+        <span class="pcat-chev">▾</span>
+        <span class="pcat-name">${cat.name}</span>
+        <span class="pcat-count">${group.length} 人</span>
+        <button class="icon-btn" style="font-size:11px;padding:3px 8px;border-radius:6px;width:auto;color:var(--muted);border:1px solid var(--border);background:var(--bg2);" onclick="startEditCat('${cat.id}','${safeCat}');event.stopPropagation()">改名</button>
+        <button class="icon-btn" onclick="deletePeopleCat('${cat.id}');event.stopPropagation()">✕</button>
+      </div>
+      <div id="pcb-${cat.id}" style="display:${isC?'none':'block'}">
+        ${group.map(_personRowHtml).join('')}
+        <div class="person-row pcat-add-row" id="par-${cat.id}">
+          <button class="btn btn-ghost btn-sm" style="width:100%;font-size:12px;padding:6px;" onclick="showAddPersonInCat('${cat.id}')">＋ 新增人物</button>
+        </div>
+      </div>
     </div>`;
-  }).join(''):'<div style="font-size:13px;color:var(--faint);text-align:center;padding:10px 0;">尚未新增任何人</div>';
+  });
+  // 未分類群組
+  const validIds=new Set(cats.map(c=>c.id));
+  const uncat=people.filter(pr=>!pr.catId||!validIds.has(pr.catId));
+  if(uncat.length>0||cats.length===0){
+    const isC=!!_pcatCollapsed['__uncat'];
+    html+=`<div class="pcat-group" id="pcg-__uncat">
+      <div class="pcat-hd${isC?' coll':''}" onclick="togglePeopleCat('__uncat')">
+        <span class="pcat-chev">▾</span>
+        <span class="pcat-name">未分類</span>
+        <span class="pcat-count">${uncat.length} 人</span>
+      </div>
+      <div id="pcb-__uncat" style="display:${isC?'none':'block'}">
+        ${uncat.map(_personRowHtml).join('')}
+        <div class="person-row pcat-add-row" id="par-__uncat">
+          <button class="btn btn-ghost btn-sm" style="width:100%;font-size:12px;padding:6px;" onclick="showAddPersonInCat('__uncat')">＋ 新增人物</button>
+        </div>
+      </div>
+    </div>`;
+  }
+  if(!html)html='<div style="font-size:13px;color:var(--faint);text-align:center;padding:10px 0;">請先新增分類，再新增人物</div>';
+  el.innerHTML=html;
 }
+function togglePeopleCat(catId){
+  _pcatCollapsed[catId]=!_pcatCollapsed[catId];
+  const hd=document.querySelector('#pcg-'+catId+' .pcat-hd');
+  const bd=document.getElementById('pcb-'+catId);
+  if(!hd||!bd)return;
+  if(_pcatCollapsed[catId]){hd.classList.add('coll');bd.style.display='none';}
+  else{hd.classList.remove('coll');bd.style.display='block';}
+}
+// ── 分類管理 ──
+function showAddPeopleCat(){
+  const f=document.getElementById('people-cat-inline');
+  f.style.display='flex';
+  setTimeout(()=>document.getElementById('new-cat-name').focus(),60);
+}
+function hideAddPeopleCat(){
+  document.getElementById('people-cat-inline').style.display='none';
+  document.getElementById('new-cat-name').value='';
+}
+function addPeopleCat(){
+  const name=document.getElementById('new-cat-name').value.trim();
+  if(!name)return;
+  if(!DB.profile.peopleCats)DB.profile.peopleCats=[];
+  DB.profile.peopleCats.push({id:'pc_'+Date.now(),name});
+  persist();hideAddPeopleCat();renderPeople();
+}
+function startEditCat(id,name){
+  const hd=document.querySelector('#pcg-'+id+' .pcat-hd');
+  if(!hd)return;
+  hd.outerHTML=`<div class="pcat-hd" id="pchd-edit-${id}" style="gap:6px;" onclick="">
+    <input id="eci-${id}" value="${name}" style="flex:1;min-width:0;margin:0;padding:5px 8px;font-size:13px;border-radius:8px;border:1.5px solid var(--pr);background:var(--bg);color:var(--ink);font-family:inherit;" onkeydown="if(event.key==='Enter')saveEditCat('${id}');if(event.key==='Escape')renderPeople()"/>
+    <button class="btn btn-pr btn-sm" style="padding:5px 10px;font-size:12px;" onclick="saveEditCat('${id}')">確認</button>
+    <button class="btn btn-ghost btn-sm" style="padding:5px 8px;font-size:12px;" onclick="renderPeople()">取消</button>
+  </div>`;
+  setTimeout(()=>{const i=document.getElementById('eci-'+id);if(i){i.focus();i.select();}},30);
+}
+function saveEditCat(id){
+  const inp=document.getElementById('eci-'+id);
+  if(!inp)return;
+  const name=inp.value.trim();
+  if(!name)return;
+  const cats=DB.profile.peopleCats||[];
+  const idx=cats.findIndex(c=>c.id===id);
+  if(idx>-1)cats[idx].name=name;
+  persist();renderPeople();
+}
+function deletePeopleCat(id){
+  DB.profile.peopleCats=(DB.profile.peopleCats||[]).filter(c=>c.id!==id);
+  (DB.profile.people||[]).forEach(pr=>{if(pr.catId===id)delete pr.catId;});
+  persist();renderPeople();
+}
+// ── 在分類內新增人物 ──
+function showAddPersonInCat(catId){
+  const row=document.getElementById('par-'+catId);
+  if(!row)return;
+  const safeCat=catId.replace(/'/g,"\\'");
+  row.innerHTML=`<input id="npi-${catId}" placeholder="姓名 / 稱呼" style="flex:1;min-width:0;margin:0;padding:5px 8px;font-size:13px;border-radius:8px;border:1.5px solid var(--pr);background:var(--bg);color:var(--ink);font-family:inherit;" onkeydown="if(event.key==='Enter')addPersonInCat('${safeCat}');if(event.key==='Escape')renderPeople()"/>
+    <button class="btn btn-pr btn-sm" style="padding:5px 10px;font-size:12px;" onclick="addPersonInCat('${safeCat}')">新增</button>
+    <button class="btn btn-ghost btn-sm" style="padding:5px 8px;font-size:12px;" onclick="renderPeople()">✕</button>`;
+  setTimeout(()=>{const i=document.getElementById('npi-'+catId);if(i)i.focus();},30);
+}
+function addPersonInCat(catId){
+  const inp=document.getElementById('npi-'+catId);
+  if(!inp)return;
+  const name=inp.value.trim();
+  if(!name)return;
+  if(!DB.profile.people)DB.profile.people=[];
+  const entry={id:'p_'+Date.now(),name};
+  if(catId!=='__uncat')entry.catId=catId;
+  DB.profile.people.push(entry);
+  persist();renderPeople();
+}
+// ── 改名人物 ──
 function startEditPerson(id,name){
   const row=document.getElementById('pr-'+id);
   if(!row)return;
@@ -1158,18 +1281,6 @@ function saveEditPerson(id){
   if(idx>-1)p[idx].name=name;
   persist();renderPeople();
 }
-function showAddPerson(){
-  document.getElementById('people-add-trigger').style.display='none';
-  const f=document.getElementById('people-inline-form');
-  f.style.display='flex';
-  setTimeout(()=>document.getElementById('new-person').focus(),60);
-}
-function hideAddPerson(){
-  document.getElementById('people-inline-form').style.display='none';
-  document.getElementById('people-add-trigger').style.display='';
-  document.getElementById('new-person').value='';
-}
-function addPerson(){const name=document.getElementById('new-person').value.trim();if(!name)return;if(!DB.profile.people)DB.profile.people=[];DB.profile.people.push({id:'p_'+Date.now(),name});persist();hideAddPerson();renderPeople();}
 function removePerson(id){DB.profile.people=DB.profile.people.filter(p=>p.id!==id);persist();renderPeople();}
 function toggleVis(id,btn){const el=document.getElementById(id);if(!el)return;el.type=el.type==='password'?'text':'password';btn.textContent=el.type==='password'?'👁':'🙈';}
 function saveProfile(){const gk=document.getElementById('p-groq').value.trim();if(gk)localStorage.setItem('groq_key',gk);persist();const btn=document.getElementById('save-btn');btn.textContent='✓ 已儲存';setTimeout(()=>btn.textContent='儲存設定',2500);}
