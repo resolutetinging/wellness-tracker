@@ -400,7 +400,7 @@ html.in-iframe .mb12{margin-bottom:8px;}
       <button class="btn btn-pr btn-sm" style="padding:7px 14px;font-size:13px;" onclick="showAddPeopleCat()">＋ 新增分類</button>
     </div>
     <div id="people-cat-inline" style="display:none;margin-bottom:10px;padding:10px 12px;background:var(--bg2);border-radius:10px;align-items:center;gap:6px;flex-wrap:wrap;">
-      <input id="new-cat-name" placeholder="分類名稱（如：家人、同事）" style="flex:1;min-width:100px;margin:0;padding:7px 10px;font-size:13px;border-radius:8px;" onkeydown="if(event.key==='Enter')addPeopleCat();if(event.key==='Escape')hideAddPeopleCat()"/>
+      <input id="new-pcat-name" placeholder="分類名稱（如：家人、同事）" style="flex:1;min-width:100px;margin:0;padding:7px 10px;font-size:13px;border-radius:8px;" onkeydown="if(event.key==='Enter')addPeopleCat();if(event.key==='Escape')hideAddPeopleCat()"/>
       <button class="btn btn-pr btn-sm" style="padding:7px 12px;font-size:13px;" onclick="addPeopleCat()">新增</button>
       <button class="btn btn-ghost btn-sm" style="padding:7px 10px;font-size:13px;" onclick="hideAddPeopleCat()">✕</button>
     </div>
@@ -1201,14 +1201,14 @@ function togglePeopleCat(catId){
 function showAddPeopleCat(){
   const f=document.getElementById('people-cat-inline');
   f.style.display='flex';
-  setTimeout(()=>document.getElementById('new-cat-name').focus(),60);
+  setTimeout(()=>document.getElementById('new-pcat-name').focus(),60);
 }
 function hideAddPeopleCat(){
   document.getElementById('people-cat-inline').style.display='none';
-  document.getElementById('new-cat-name').value='';
+  document.getElementById('new-pcat-name').value='';
 }
 function addPeopleCat(){
-  const name=document.getElementById('new-cat-name').value.trim();
+  const name=document.getElementById('new-pcat-name').value.trim();
   if(!name)return;
   if(!DB.profile.peopleCats)DB.profile.peopleCats=[];
   DB.profile.peopleCats.push({id:'pc_'+Date.now(),name});
