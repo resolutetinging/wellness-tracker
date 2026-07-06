@@ -1124,7 +1124,7 @@ function autoFillHDFields(text){const tf=(id,pats)=>{const el=document.getElemen
 // ── SETTINGS ──
 function loadProfile(){
   document.getElementById('p-groq').value=localStorage.getItem('groq_key')||'';
-  const gt=document.getElementById('gist-token');if(gt)gt.value=localStorage.getItem('gist_token')||'';
+  const gt=document.getElementById('gist-token');if(gt)gt.value=localStorage.getItem('gh_pat')||localStorage.getItem('gist_token')||'';
   const gi=document.getElementById('gist-id');if(gi)gi.value=localStorage.getItem('gist_id')||'';
   renderPeople();renderCatManager();
   const er=document.getElementById('ce-emoji-row');if(er)er.innerHTML=EMOJIS.map(e=>`<button type="button" onclick="setCEIcon('${e}')" style="font-size:17px;background:none;border:none;cursor:pointer;padding:3px;">${e}</button>`).join('');
@@ -1501,7 +1501,7 @@ function openImagePicker(targetId){
 
 // ── GIST SYNC ──
 function gistCreds(){
-  const token=(document.getElementById('gist-token')?.value||localStorage.getItem('gist_token')||'').trim();
+  const token=(document.getElementById('gist-token')?.value||localStorage.getItem('gh_pat')||localStorage.getItem('gist_token')||'').trim();
   const id=(document.getElementById('gist-id')?.value||localStorage.getItem('gist_id')||'').trim();
   return{token,id};
 }
