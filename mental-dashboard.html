@@ -610,13 +610,14 @@ const DEFAULT_CATS={
   work:{label:'工作',icon:'💼',color:'#A07068',sub:['工作順利','壓力大','有成就感','無聊']}
 };
 
-// ── Categories（因子導向重構 Phase B）──
-// 四個固定分類，本期不開放使用者自訂新分類（避免雷達圖軸心無限增生）
-const FIXED_CATEGORIES=['情緒波動','咖啡/飲水代償','外部家庭/人際事件','工作/任務壓力'];
+// ── Categories（因子導向重構 Phase B；2026-07-08 分類拆分：外部家庭/人際事件 → 家庭 + 外部人際）──
+// 五個固定分類，本期不開放使用者自訂新分類（避免雷達圖軸心無限增生）
+const FIXED_CATEGORIES=['情緒波動','家庭','外部人際','咖啡/飲水代償','工作/任務壓力'];
 const CATEGORY_KEYWORDS={
   '情緒波動':['憤怒','難過','焦慮','崩潰','情緒低落','情緒失控','煩躁','沮喪','低潮','情緒波動','心情差','不安','暴怒','委屈'],
+  '家庭':['mom','媽媽','爸爸','家人','家庭','家庭聚會','親戚','孩子','小孩','家族'],
+  '外部人際':['吵架','衝突','伴侶','另一半','朋友','人際','社交','得罪','誤會'],
   '咖啡/飲水代償':['咖啡','咖啡因','提神','熬夜','濃縮','拿鐵','手沖','美式','水喝不夠','脫水','忘記喝水','補水','電解質','代償'],
-  '外部家庭/人際事件':['mom','媽媽','爸爸','家人','家庭','吵架','衝突','伴侶','另一半','家庭聚會','親戚','孩子','小孩','人際'],
   '工作/任務壓力':['工作','任務','deadline','截止','加班','壓力','開會','會議','專案','進度','老闆','客戶','報告','趕工']
 };
 // 規則式自動歸類：數值規則（moodScore<=3）＋ 關鍵字比對（emotionTags/impactFactors.detail/notes，全文 includes，不分大小寫）
@@ -634,6 +635,30 @@ function autoCategorize(entry){
     if(keywords.some(kw=>fullText.includes(kw.toLowerCase())))result.add(cat);
   });
   return[...result];
+}
+// 一次性遷移：2026-07-08 分類拆分（外部家庭/人際事件 → 家庭 + 外部人際）
+// 冪等：用 localStorage flag 記錄已執行過，避免重複載入時重跑
+function migrateCategorySplit(){
+  const FLAG='mb_cat_split_migrated';
+  if(localStorage.getItem(FLAG))return;
+  const OLD_CAT='外部家庭/人際事件';
+  let touched=false;
+  (DB.entries||[]).forEach(e=>{
+    if(!e||!Array.isArray(e.categories)||!e.categories.includes(OLD_CAT))return;
+    touched=true;
+    const textParts=[];
+    (e.emotionTags||[]).forEach(t=>{if(t)textParts.push(String(t));});
+    (e.impactFactors||[]).forEach(f=>{if(f&&f.detail)textParts.push(String(f.detail));});
+    if(e.notes)textParts.push(String(e.notes));
+    const fullText=textParts.join(' ').toLowerCase();
+    const next=new Set(e.categories.filter(c=>c!==OLD_CAT));
+    ['家庭','外部人際'].forEach(cat=>{
+      if(CATEGORY_KEYWORDS[cat].some(kw=>fullText.includes(kw.toLowerCase())))next.add(cat);
+    });
+    e.categories=[...next];
+  });
+  if(touched)persist();
+  localStorage.setItem(FLAG,'1');
 }
 const HD_CENTERS=[
   {name:'頭腦 (Head)',color:'#9090C8',def:'靈感與思考的壓力中心。已定義：思維穩定、持續產生靈感。未定義：接收並放大他人想法，容易陷入思考漩渦。'},
@@ -658,6 +683,7 @@ if(!DB.customCats)DB.customCats=[];
 var _pcatCollapsed={};
 if(!DB.catOverrides)DB.catOverrides={};
 function getCats(){const b={};Object.entries(DEFAULT_CATS).forEach(([k,v])=>{b[k]={...v,...(DB.catOverrides[k]||{})};});DB.customCats.forEach(c=>b[c.id]=c);return b;}
+migrateCategorySplit();
 
 // seed
 (function(){
