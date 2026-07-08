@@ -275,7 +275,13 @@ html.in-iframe .mb12{margin-bottom:8px;}
   <div id="s3" style="display:none;">
     <div style="font-size:14px;color:var(--muted);margin-bottom:10px;">今天有什麼想記錄的嗎？</div>
     <textarea id="notes" rows="6" placeholder="在這裡自由書寫..." style="margin-bottom:14px;"></textarea>
-    <div class="row"><button class="btn btn-ghost btn-sm" onclick="goStep(2)">← 返回</button><button class="btn btn-pr" onclick="saveEntry()">💾 儲存</button></div>
+    <div class="row"><button class="btn btn-ghost btn-sm" onclick="goStep(2)">← 返回</button><button class="btn btn-pr" onclick="showCatConfirm()">下一步 →</button></div>
+  </div>
+  <div id="s-confirm" style="display:none;">
+    <div style="font-size:14px;color:var(--muted);margin-bottom:6px;">系統判定的 Categories（點擊可取消）</div>
+    <div style="font-size:11px;color:var(--faint);margin-bottom:11px;">確認或勾選最終要儲存的分類（四個固定分類，不開放自訂）</div>
+    <div class="chip-wrap mb12" id="cat-confirm-list"></div>
+    <div class="row"><button class="btn btn-ghost btn-sm" onclick="backToNotes()">← 返回</button><button class="btn btn-pr" onclick="saveEntry()">💾 儲存</button></div>
   </div>
   <div id="s-saved" style="display:none;" class="saved-screen">
     <div id="saved-e" style="font-size:68px;margin-bottom:14px;"></div>
@@ -394,6 +400,12 @@ html.in-iframe .mb12{margin-bottom:8px;}
     </div>
   </div>
   <div id="import-status" style="display:none;margin-bottom:12px;padding:14px 16px;border-radius:14px;font-size:13px;line-height:1.6;"></div>
+  <div class="glass card-p mb12">
+    <div class="sec-title">🗂 Categories 回填</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.6;">為缺少 Categories 欄位的舊記錄執行一次性自動歸類（規則式關鍵字比對）。已存在 Categories 欄位的記錄（含手動確認過的空陣列）不會被覆寫。</div>
+    <button class="btn btn-pr btn-sm" onclick="backfillCategories()">▶ 執行回填</button>
+    <div id="backfill-status" style="display:none;margin-top:10px;font-size:13px;color:var(--muted);"></div>
+  </div>
   <div class="glass card-p mb12">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
       <div class="sec-title" style="margin-bottom:0;">👥 我的人際圈</div>
@@ -597,6 +609,32 @@ const DEFAULT_CATS={
   health:{label:'健康',icon:'💚',color:'#588068',sub:['睡眠好','睡眠差','運動了','身體不適']},
   work:{label:'工作',icon:'💼',color:'#A07068',sub:['工作順利','壓力大','有成就感','無聊']}
 };
+
+// ── Categories（因子導向重構 Phase B）──
+// 四個固定分類，本期不開放使用者自訂新分類（避免雷達圖軸心無限增生）
+const FIXED_CATEGORIES=['情緒波動','咖啡/飲水代償','外部家庭/人際事件','工作/任務壓力'];
+const CATEGORY_KEYWORDS={
+  '情緒波動':['憤怒','難過','焦慮','崩潰','情緒低落','情緒失控','煩躁','沮喪','低潮','情緒波動','心情差','不安','暴怒','委屈'],
+  '咖啡/飲水代償':['咖啡','咖啡因','提神','熬夜','濃縮','拿鐵','手沖','美式','水喝不夠','脫水','忘記喝水','補水','電解質','代償'],
+  '外部家庭/人際事件':['mom','媽媽','爸爸','家人','家庭','吵架','衝突','伴侶','另一半','家庭聚會','親戚','孩子','小孩','人際'],
+  '工作/任務壓力':['工作','任務','deadline','截止','加班','壓力','開會','會議','專案','進度','老闆','客戶','報告','趕工']
+};
+// 規則式自動歸類：數值規則（moodScore<=3）＋ 關鍵字比對（emotionTags/impactFactors.detail/notes，全文 includes，不分大小寫）
+// 新增關鍵字或分類只需編輯 CATEGORY_KEYWORDS / FIXED_CATEGORIES，不需改動本函式
+function autoCategorize(entry){
+  const result=new Set();
+  if(!entry)return[];
+  if(typeof entry.moodScore==='number'&&entry.moodScore<=3)result.add('情緒波動');
+  const textParts=[];
+  (entry.emotionTags||[]).forEach(t=>{if(t)textParts.push(String(t));});
+  (entry.impactFactors||[]).forEach(f=>{if(f&&f.detail)textParts.push(String(f.detail));});
+  if(entry.notes)textParts.push(String(entry.notes));
+  const fullText=textParts.join(' ').toLowerCase();
+  Object.entries(CATEGORY_KEYWORDS).forEach(([cat,keywords])=>{
+    if(keywords.some(kw=>fullText.includes(kw.toLowerCase())))result.add(cat);
+  });
+  return[...result];
+}
 const HD_CENTERS=[
   {name:'頭腦 (Head)',color:'#9090C8',def:'靈感與思考的壓力中心。已定義：思維穩定、持續產生靈感。未定義：接收並放大他人想法，容易陷入思考漩渦。'},
   {name:'邏輯 (Ajna)',color:'#90B090',def:'思考與概念化中心。已定義：觀點固定，有自己的思考方式。未定義：思維靈活，容易被他人觀點影響。'},
@@ -627,7 +665,7 @@ function getCats(){const b={};Object.entries(DEFAULT_CATS).forEach(([k,v])=>{b[k
   const m=[4,6,3,7,5,8,2,6,7,4,5,3,8,6,5,7,4,6,8,5,3,7,6,4,5,8,7,6,5,4];
   const ck=Object.keys(DEFAULT_CATS);
   const sm={weather:['晴天','雨天','陰天'],friends:['朋友'],health:['睡眠好','睡眠差'],work:['工作順利','壓力大']};
-  for(let i=29;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);const cat=ck[i%4];DB.entries.push({id:'demo_'+i,isDemo:true,timestamp:d.toISOString(),moodScore:m[i]||5,emotionTags:[EMOTIONS[i%EMOTIONS.length],EMOTIONS[(i+3)%EMOTIONS.length]],impactFactors:[{category:cat,detail:sm[cat][i%sm[cat].length]}],notes:''});}
+  for(let i=29;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);const cat=ck[i%4];const demoE={id:'demo_'+i,isDemo:true,timestamp:d.toISOString(),moodScore:m[i]||5,emotionTags:[EMOTIONS[i%EMOTIONS.length],EMOTIONS[(i+3)%EMOTIONS.length]],impactFactors:[{category:cat,detail:sm[cat][i%sm[cat].length]}],notes:''};demoE.categories=autoCategorize(demoE);DB.entries.push(demoE);}
   persist();
 })();
 
@@ -862,7 +900,7 @@ function buildPie(freq,state,activeKey){
 function buildWarn(){const s=[...DB.entries].sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp)).slice(0,3);if(s.length<3||!s.every(e=>e.moodScore<=3))return'';const hw=['Projector','Reflector'].includes(DB.profile.hdType);return`<div class="warn"><span style="font-size:20px;">⚠️</span><div><div style="font-size:13px;font-weight:600;color:#9A5048;margin-bottom:3px;">決策警告</div><div style="font-size:13px;line-height:1.6;">已連續 3 天心情低落。${hw?`根據人類圖類型（${DB.profile.hdType}），可能處於「非自己主題」，`:''}建議暫緩重大決策。🌿</div></div></div>`;}
 
 // ── TRACKER ──
-let selEmotions=[],selFactors=[],activeCat=null,newCatColor=CAT_COLORS[0],entryDate=new Date();
+let selEmotions=[],selFactors=[],selCategories=[],activeCat=null,newCatColor=CAT_COLORS[0],entryDate=new Date();
 let editFactors=[];
 
 function initTracker(dateOverride){
@@ -942,17 +980,44 @@ function addCustomCat(){
   persist();document.getElementById('new-cat-icon').value='';nameEl.value='';closeCatForm();renderCatRow();
 }
 function goStep(n){
-  ['s0','s1','s2','s3','s-saved'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
+  ['s0','s1','s2','s3','s-confirm','s-saved'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
   document.getElementById('s'+n).style.display='block';
   for(let i=0;i<4;i++){document.getElementById('b'+i).className='pbar'+(i<=n?' done':'');document.getElementById('l'+i).className='seg-lbl'+(i===n?' active':'');}
+}
+// ── Categories 自動歸類預覽＋手動修正（Phase B / 3.3）──
+function showCatConfirm(){
+  const draft={moodScore:+document.getElementById('slider').value,emotionTags:[...selEmotions],impactFactors:selFactors.map(f=>({category:f.category,detail:f.detail})),notes:document.getElementById('notes').value};
+  selCategories=autoCategorize(draft);
+  renderCatConfirm();
+  document.getElementById('s3').style.display='none';
+  document.getElementById('s-confirm').style.display='block';
+}
+function backToNotes(){document.getElementById('s-confirm').style.display='none';document.getElementById('s3').style.display='block';}
+function renderCatConfirm(){
+  const wrap=document.getElementById('cat-confirm-list');
+  if(!wrap)return;
+  wrap.innerHTML='';
+  FIXED_CATEGORIES.forEach(cat=>{
+    const btn=document.createElement('button');
+    btn.type='button';
+    btn.className='chip'+(selCategories.includes(cat)?' sel':'');
+    btn.textContent=cat;
+    btn.onclick=()=>toggleCatConfirm(cat);
+    wrap.appendChild(btn);
+  });
+}
+function toggleCatConfirm(cat){
+  const i=selCategories.indexOf(cat);
+  if(i>-1)selCategories.splice(i,1);else selCategories.push(cat);
+  renderCatConfirm();
 }
 function saveEntry(){
   const score=+document.getElementById('slider').value;
   const ts=new Date(entryDate);ts.setHours(new Date().getHours(),new Date().getMinutes(),0,0);
-  DB.entries.push({id:'e_'+Date.now(),timestamp:ts.toISOString(),moodScore:score,emotionTags:[...selEmotions],impactFactors:selFactors.map(f=>({category:f.category,detail:f.detail})),notes:document.getElementById('notes').value});
-  persist();document.getElementById('saved-e').textContent=moodInfo(score).emoji;document.getElementById('s3').style.display='none';document.getElementById('s-saved').style.display='block';
+  DB.entries.push({id:'e_'+Date.now(),timestamp:ts.toISOString(),moodScore:score,emotionTags:[...selEmotions],impactFactors:selFactors.map(f=>({category:f.category,detail:f.detail})),notes:document.getElementById('notes').value,categories:[...new Set(selCategories)]});
+  persist();document.getElementById('saved-e').textContent=moodInfo(score).emoji;document.getElementById('s-confirm').style.display='none';document.getElementById('s-saved').style.display='block';
 }
-function resetTracker(dateStr){selEmotions=[];selFactors=[];activeCat=null;newCatColor=CAT_COLORS[0];document.getElementById('slider').value=5;document.getElementById('notes').value='';updateSlider();initTracker(dateStr||null);goStep(0);}
+function resetTracker(dateStr){selEmotions=[];selFactors=[];selCategories=[];activeCat=null;newCatColor=CAT_COLORS[0];document.getElementById('slider').value=5;document.getElementById('notes').value='';updateSlider();initTracker(dateStr||null);goStep(0);}
 function softReset(){
   document.getElementById('notes').value='';
   entryDate=new Date();updateDateLabel();
@@ -967,12 +1032,14 @@ function softReset(){
 
 // ── REFLECT ──
 let aiScope=7;
+let insightsAllEntries=[];
 function setScope(d,el){aiScope=d;document.querySelectorAll('#ai-scope-row .chip').forEach(b=>b.className='chip');el.className='chip sel';}
 function renderInsights(){
   document.getElementById('ins-warn').innerHTML=buildWarn();
   const body=document.getElementById('ins-body');
   const cutoff=new Date(Date.now()-reflectDays*86400000);
   const all=DB.entries.filter(e=>new Date(e.timestamp)>=cutoff);
+  insightsAllEntries=all;
   if(!all.length){body.innerHTML='<div style="text-align:center;padding:40px 0;"><div style="font-size:44px;margin-bottom:12px;">🔍</div><div style="font-size:20px;font-weight:700;">此區間尚無資料</div><div style="font-size:13px;color:var(--muted);margin-top:8px;">試試拉長時間範圍，或先記錄心情</div></div>';return;}
   const sorted=[...all].sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp));
   const l3=sorted.slice(0,3);const l3avg=l3.length?(l3.reduce((s,e)=>s+e.moodScore,0)/l3.length).toFixed(1):'--';
@@ -985,7 +1052,50 @@ function renderInsights(){
   <div class="two-col"><div class="glass" style="padding:15px;"><div style="font-size:11px;color:var(--muted);margin-bottom:6px;">🏆 Best Day</div><div style="font-size:26px;">${moodInfo(best.moodScore).emoji}</div><div style="font-size:19px;font-weight:700;color:#588068;">${best.moodScore}/10</div><div style="font-size:11px;color:var(--muted);margin-top:2px;">${new Date(best.timestamp).toLocaleDateString('zh-TW',{month:'numeric',day:'numeric'})}</div><div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:6px;">${(best.impactFactors||[]).map(f=>{const col=cats[f.category]?.color||'#888';return`<span style="font-size:10px;padding:2px 7px;border-radius:100px;background:${col}18;color:${col};">${f.detail}</span>`;}).join('')}</div></div><div class="glass" style="padding:15px;"><div style="font-size:11px;color:var(--muted);margin-bottom:6px;">💤 Lowest Day</div><div style="font-size:26px;">${moodInfo(worst.moodScore).emoji}</div><div style="font-size:19px;font-weight:700;color:#A07068;">${worst.moodScore}/10</div><div style="font-size:11px;color:var(--muted);margin-top:2px;">${new Date(worst.timestamp).toLocaleDateString('zh-TW',{month:'numeric',day:'numeric'})}</div><div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:6px;">${(worst.impactFactors||[]).map(f=>{const col=cats[f.category]?.color||'#888';return`<span style="font-size:10px;padding:2px 7px;border-radius:100px;background:${col}18;color:${col};">${f.detail}</span>`;}).join('')}</div></div></div>
   <div class="glass card-p mb12"><div class="sec-title">🎯 影響因子排行</div>${impH||'<div style="font-size:13px;color:var(--muted);">尚無資料</div>'}</div>
   <div class="glass card-p mb12"><div class="sec-title">🔍 Factor Sentiment</div><div style="font-size:12px;color:var(--muted);margin-bottom:12px;">各因子細項對你情緒的影響傾向</div>${sentH}</div>
+  <div class="glass card-p mb12"><div class="sec-title">📁 依 Categories 檢視</div><div class="chip-wrap mb12" id="cat-filter-row">${FIXED_CATEGORIES.map(c=>`<button class="chip" onclick="filterByCategory('${c}',this)">${c}</button>`).join('')}<button class="chip" onclick="filterByCategory('',this)">全部</button></div><div id="cat-filter-result" style="font-size:13px;color:var(--faint);text-align:center;padding:6px 0;">點選分類查看對應記錄</div></div>
   <div class="glass card-p"><div class="sb mb12"><div class="sec-title" style="margin-bottom:0;">✨ AI Analysis</div><button id="ai-run-btn" class="btn btn-pr btn-sm" onclick="runAI()">分析</button></div><div id="ai-scope-row" style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;"><button class="chip sel" onclick="setScope(7,this)">近7天</button><button class="chip" onclick="setScope(30,this)">近30天</button><button class="chip" onclick="setScope(0,this)">全部</button></div><div id="ai-no-key" style="display:none;font-size:13px;color:var(--muted);text-align:center;padding:10px 0;">請先在 Settings 中設定 Groq API Key</div><div id="ai-loading" style="display:none;text-align:center;padding:20px 0;"><div class="pulse" style="font-size:24px;margin-bottom:8px;">✨</div><div style="font-size:13px;color:var(--muted);">AI 分析中…</div></div><div id="ai-result" style="font-size:14px;line-height:1.8;display:none;white-space:pre-wrap;"></div><div id="ai-error" style="display:none;font-size:13px;color:var(--rose);padding:10px;background:var(--rose-bg);border-radius:10px;"></div><div id="ai-empty" style="font-size:13px;color:var(--muted);text-align:center;padding:12px 0;">點擊「分析」，AI 將根據你的記錄生成洞察 🌿</div></div>`;
+}
+// ── Categories 篩選檢視（Phase B / B5）：DOM+textContent 建構，避免使用者資料經 innerHTML 插入 ──
+function filterByCategory(cat,btn){
+  document.querySelectorAll('#cat-filter-row .chip').forEach(b=>b.className='chip');
+  if(btn)btn.className='chip sel';
+  const result=document.getElementById('cat-filter-result');
+  if(!result)return;
+  result.innerHTML='';
+  const list=(cat?insightsAllEntries.filter(e=>(e.categories||[]).includes(cat)):insightsAllEntries.filter(e=>(e.categories||[]).length>0))
+    .slice().sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp));
+  if(!list.length){
+    const empty=document.createElement('div');
+    empty.style.cssText='text-align:center;padding:10px 0;font-size:13px;color:var(--muted);';
+    empty.textContent='此分類尚無記錄';
+    result.appendChild(empty);
+    return;
+  }
+  result.style.textAlign='left';
+  list.forEach(e=>{
+    const row=document.createElement('div');
+    row.style.cssText='padding:9px 0;border-bottom:1px solid var(--border);';
+    const head=document.createElement('div');
+    head.style.cssText='display:flex;align-items:center;gap:8px;font-size:13px;';
+    const dateSpan=document.createElement('span');
+    dateSpan.style.color='var(--muted)';
+    dateSpan.textContent=new Date(e.timestamp).toLocaleDateString('zh-TW',{month:'numeric',day:'numeric'});
+    const scoreSpan=document.createElement('span');
+    scoreSpan.style.fontWeight='700';
+    scoreSpan.textContent=e.moodScore+'/10';
+    const tagsSpan=document.createElement('span');
+    tagsSpan.style.cssText='font-size:11px;color:var(--faint);';
+    tagsSpan.textContent=(e.categories||[]).join('、');
+    head.appendChild(dateSpan);head.appendChild(scoreSpan);head.appendChild(tagsSpan);
+    row.appendChild(head);
+    if(e.notes){
+      const notesDiv=document.createElement('div');
+      notesDiv.style.cssText='font-size:12px;color:var(--muted);margin-top:4px;white-space:pre-wrap;';
+      notesDiv.textContent=e.notes;
+      row.appendChild(notesDiv);
+    }
+    result.appendChild(row);
+  });
 }
 function toggleFSCat(id){const el=document.getElementById(id);const ar=document.getElementById(id+'-ar');if(!el||!ar)return;const open=el.style.display!=='none';el.style.display=open?'none':'block';ar.textContent=open?'▶':'▼';}
 function buildFactorSentiment(entries){
@@ -1295,6 +1405,22 @@ function setPersonCat(id,catId){
 function toggleVis(id,btn){const el=document.getElementById(id);if(!el)return;el.type=el.type==='password'?'text':'password';btn.textContent=el.type==='password'?'👁':'🙈';}
 function saveProfile(){const gk=document.getElementById('p-groq').value.trim();if(gk)localStorage.setItem('groq_key',gk);persist();const btn=document.getElementById('save-btn');btn.textContent='✓ 已儲存';setTimeout(()=>btn.textContent='儲存設定',2500);}
 function exportData(){const blob=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`wellness_${new Date().toISOString().split('T')[0]}.json`;a.click();URL.revokeObjectURL(url);}
+// ── Categories 舊資料回填（Phase B / B6+B7，選配一次性批次功能）──
+// 只處理完全沒有 categories 屬性的記錄；已存在此欄位者（含空陣列）一律跳過，不覆寫使用者手動修正結果
+function backfillCategories(){
+  const proceed=confirm('此動作將為缺少 Categories 欄位的舊記錄自動分類。建議先確認已備份資料（上方「匯出 JSON」），或已完成 Gist 同步。是否繼續？');
+  if(!proceed)return;
+  let count=0;
+  DB.entries.forEach(e=>{
+    if(!Object.prototype.hasOwnProperty.call(e,'categories')){
+      e.categories=autoCategorize(e);
+      count++;
+    }
+  });
+  if(count>0)persist();
+  const statusEl=document.getElementById('backfill-status');
+  if(statusEl){statusEl.style.display='block';statusEl.textContent=`已回填 ${count} 筆`;}
+}
 function importData(input){
   const file = input.files[0];
   if(!file) return;
