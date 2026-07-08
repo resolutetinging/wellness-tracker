@@ -765,6 +765,8 @@ function editEntry(id){
     if(f.category==='friends'&&f.detail&&!people.some(p=>p.name===f.detail))return{...f,isFree:true};
     return{...f};
   });
+  editCategories=[...(e.categories||[])];
+  const editCatHtml=FIXED_CATEGORIES.map(cat=>`<button type="button" class="chip${editCategories.includes(cat)?' sel':''}" data-editcat="${cat}" onclick="toggleEditCategory('${cat}',this)">${cat}</button>`).join('');
   const tagsHtml=EMOTIONS.map(t=>{
     const sel=(e.emotionTags||[]).includes(t);
     return`<button type="button" onclick="toggleEditTag(this,'${t}')" data-tag="${t}" style="display:inline-block;padding:5px 12px;border-radius:100px;font-size:12px;cursor:pointer;border:1.5px solid ${sel?'var(--pr)':'var(--border)'};background:${sel?'var(--pr)':'transparent'};color:${sel?'#fff':'var(--ink2)'};margin:2px;font-family:inherit;">${t}</button>`;
@@ -800,6 +802,11 @@ function editEntry(id){
       <div>
         <label style="font-size:10px;color:var(--faint);font-weight:600;letter-spacing:.08em;text-transform:uppercase;display:block;margin-bottom:6px;">筆記</label>
         <textarea id="edit-notes" rows="4" style="font-family:inherit;background:var(--bg2);border:1.5px solid var(--border);border-radius:12px;padding:10px 14px;font-size:14px;color:var(--ink);width:100%;outline:none;resize:none;line-height:1.7;">${e.notes||''}</textarea>
+      </div>
+      <div>
+        <label style="font-size:10px;color:var(--faint);font-weight:600;letter-spacing:.08em;text-transform:uppercase;display:block;margin-bottom:6px;">Categories</label>
+        <div style="font-size:11px;color:var(--faint);margin-bottom:6px;">四個固定分類，不開放自訂</div>
+        <div id="edit-cat-list" style="display:flex;flex-wrap:wrap;gap:4px;">${editCatHtml}</div>
       </div>
       <div style="display:flex;gap:8px;">
         <button onclick="closeModal()" style="flex:1;padding:12px;border-radius:12px;border:1.5px solid var(--border);background:transparent;font-family:inherit;font-size:14px;cursor:pointer;color:var(--muted);">取消</button>
@@ -869,12 +876,18 @@ function updateEditCustom(cat,v){
   editFactors=editFactors.filter(f=>f.category!==cat);
   if(v.trim())editFactors.push({category:cat,detail:v.trim()});
 }
+function toggleEditCategory(cat,btn){
+  const i=editCategories.indexOf(cat);
+  if(i>-1)editCategories.splice(i,1);else editCategories.push(cat);
+  if(btn)btn.className='chip'+(editCategories.includes(cat)?' sel':'');
+}
 function saveEditEntry(id){
   const e=DB.entries.find(x=>x.id===id);if(!e)return;
   e.moodScore=+document.getElementById('edit-slider').value;
   e.notes=document.getElementById('edit-notes').value;
   e.emotionTags=[...document.querySelectorAll('#edit-tags button')].filter(b=>b.style.background!=='transparent'&&b.style.background!=='').map(b=>b.dataset.tag);
   e.impactFactors=editFactors.map(f=>({category:f.category,detail:f.detail}));
+  e.categories=[...new Set(editCategories)];
   const newDateStr=document.getElementById('edit-date')?.value;
   if(newDateStr){
     const orig=new Date(e.timestamp);
@@ -902,6 +915,7 @@ function buildWarn(){const s=[...DB.entries].sort((a,b)=>new Date(b.timestamp)-n
 // ── TRACKER ──
 let selEmotions=[],selFactors=[],selCategories=[],activeCat=null,newCatColor=CAT_COLORS[0],entryDate=new Date();
 let editFactors=[];
+let editCategories=[];
 
 function initTracker(dateOverride){
   entryDate=dateOverride?new Date(dateOverride+'T12:00:00'):new Date();
