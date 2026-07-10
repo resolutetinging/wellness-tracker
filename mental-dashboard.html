@@ -772,16 +772,19 @@ function renderCalendar(){
 function calPrev(){calMonth--;if(calMonth<0){calMonth=11;calYear--;}renderCalendar();}
 function calNext(){calMonth++;if(calMonth>11){calMonth=0;calYear++;}renderCalendar();}
 
+let _dayModalCtx=null; /* 記住目前開啟的當日檢視：編輯/刪除單筆後返回當天清單，而非整個關閉 */
+function backToDay(){ if(_dayModalCtx){openDayModal(_dayModalCtx.y,_dayModalCtx.m,_dayModalCtx.d);}else{closeModal();} }
 function openDayModal(y,m,d){
+  _dayModalCtx={y:y,m:m,d:d};
   const es=DB.entries.filter(e=>{const dt=new Date(e.timestamp);return dt.getFullYear()===y&&dt.getMonth()===m-1&&dt.getDate()===d;}).sort((a,b)=>new Date(a.timestamp)-new Date(b.timestamp));
   document.getElementById('modal-title').textContent=y+'年'+m+'月'+d+'日';
   const cats=getCats();
-  let body=es.length?es.map(e=>{const mi=moodInfo(e.moodScore);const factors=(e.impactFactors||[]).map(f=>{const col=cats[f.category]?.color||'#888';return`<span style="font-size:11px;padding:2px 8px;border-radius:100px;background:${col}18;color:${col};">${cats[f.category]?.icon||''} ${f.detail}</span>`;}).join('');const tags=(e.emotionTags||[]).map(t=>`<span style="font-size:11px;padding:2px 8px;border-radius:100px;background:var(--pr-bg);color:var(--pr-d);">${t}</span>`).join('');return`<div style="padding:14px;border-radius:14px;background:var(--bg2);margin-bottom:10px;"><div class="sb mb8"><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:24px;">${mi.emoji}</span><span style="font-size:20px;font-weight:700;color:${mi.hex};">${e.moodScore}/10</span><span style="font-size:12px;color:var(--muted);">${new Date(e.timestamp).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'})}</span></div><div style="display:flex;gap:6px;"><button onclick="editEntry('${e.id}')" style="font-size:13px;padding:4px 10px;border-radius:8px;border:1px solid var(--border);background:transparent;cursor:pointer;color:var(--muted);font-family:inherit;">編輯</button><button class="e-del" onclick="delEntryModal('${e.id}')">🗑</button></div></div>${tags?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">${tags}</div>`:''}${factors?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">${factors}</div>`:''}${e.notes?`<div style="font-size:13px;line-height:1.6;padding-top:6px;border-top:1px solid var(--border);white-space:pre-wrap;word-break:break-word;">${e.notes}</div>`:''}</div>`;}).join(''):'<div style="text-align:center;padding:20px;color:var(--muted);font-size:14px;">這天沒有記錄</div>';
+  let body=es.length?es.map(e=>{const mi=moodInfo(e.moodScore);const factors=(e.impactFactors||[]).map(f=>{const col=cats[f.category]?.color||'#888';return`<span style="font-size:11px;padding:2px 8px;border-radius:100px;background:${col}18;color:${col};">${cats[f.category]?.icon||''} ${f.detail}</span>`;}).join('');const tags=(e.emotionTags||[]).map(t=>`<span style="font-size:11px;padding:2px 8px;border-radius:100px;background:var(--pr-bg);color:var(--pr-d);">${t}</span>`).join('');const catPills=(e.categories||[]).map(c=>`<span style="font-size:11px;padding:2px 8px;border-radius:100px;background:rgba(88,128,104,.12);color:#588068;border:1px solid rgba(88,128,104,.28);">🗂 ${c}</span>`).join('');return`<div style="padding:14px;border-radius:14px;background:var(--bg2);margin-bottom:10px;"><div class="sb mb8"><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:24px;">${mi.emoji}</span><span style="font-size:20px;font-weight:700;color:${mi.hex};">${e.moodScore}/10</span><span style="font-size:12px;color:var(--muted);">${new Date(e.timestamp).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'})}</span></div><div style="display:flex;gap:6px;"><button onclick="editEntry('${e.id}')" style="font-size:13px;padding:4px 10px;border-radius:8px;border:1px solid var(--border);background:transparent;cursor:pointer;color:var(--muted);font-family:inherit;">編輯</button><button class="e-del" onclick="delEntryModal('${e.id}')">🗑</button></div></div>${catPills?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">${catPills}</div>`:''}${tags?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">${tags}</div>`:''}${factors?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">${factors}</div>`:''}${e.notes?`<div style="font-size:13px;line-height:1.6;padding-top:6px;border-top:1px solid var(--border);white-space:pre-wrap;word-break:break-word;">${e.notes}</div>`:''}</div>`;}).join(''):'<div style="text-align:center;padding:20px;color:var(--muted);font-size:14px;">這天沒有記錄</div>';
   body+=`<button class="btn btn-ghost" onclick="closeModal();openTrackerWithDate(${y},${m},${d});" style="margin-top:8px;">＋ 補記這天</button>`;
   document.getElementById('modal-body').innerHTML=body;
   document.getElementById('modal-bg').style.display='flex';
 }
-function delEntryModal(id){if(!confirm('確定刪除？'))return;DB.entries=DB.entries.filter(e=>e.id!==id);persist();closeModal();renderHome();}
+function delEntryModal(id){if(!confirm('確定刪除？'))return;DB.entries=DB.entries.filter(e=>e.id!==id);persist();renderHome();backToDay();}
 function editEntry(id){
   const e=DB.entries.find(x=>x.id===id);if(!e)return;
   const cats=getCats();
@@ -835,7 +838,7 @@ function editEntry(id){
         <div id="edit-cat-list" style="display:flex;flex-wrap:wrap;gap:4px;">${editCatHtml}</div>
       </div>
       <div style="display:flex;gap:8px;">
-        <button onclick="closeModal()" style="flex:1;padding:12px;border-radius:12px;border:1.5px solid var(--border);background:transparent;font-family:inherit;font-size:14px;cursor:pointer;color:var(--muted);">取消</button>
+        <button onclick="backToDay()" style="flex:1;padding:12px;border-radius:12px;border:1.5px solid var(--border);background:transparent;font-family:inherit;font-size:14px;cursor:pointer;color:var(--muted);">取消</button>
         <button onclick="saveEditEntry('${id}')" style="flex:2;padding:12px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--pr),var(--pr-d));color:#fff;font-family:inherit;font-size:14px;font-weight:500;cursor:pointer;">儲存</button>
       </div>
     </div>`;
@@ -921,7 +924,7 @@ function saveEditEntry(id){
     nd.setHours(orig.getHours(),orig.getMinutes(),orig.getSeconds(),0);
     e.timestamp=nd.toISOString();
   }
-  persist();closeModal();renderHome();
+  persist();renderHome();backToDay(); /* 返回當天清單，方便繼續編輯同日其他記錄 */
 }
 function closeModal(){document.getElementById('modal-bg').style.display='none';}
 
