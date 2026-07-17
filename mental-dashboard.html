@@ -476,36 +476,10 @@ html.in-iframe .mb12{margin-bottom:8px;}
       <button class="btn btn-pr" id="save-btn" onclick="saveProfile()">儲存設定</button>
     </div>
   </div>
-  <div class="glass card-p mb12">
-    <div class="c-toggle" data-card="c-gist" onclick="toggleCard('c-gist')">
-      <div class="sec-title" style="margin-bottom:0;">☁️ 跨裝置同步 (GitHub Gist)</div>
-      <span class="chev">▾</span>
-    </div>
-    <div id="c-gist-bd" class="c-body">
-      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.7;">
-        與 iPhone 雙向同步。需要 GitHub Personal Access Token 與 Gist ID。
-        <a href="https://github.com/settings/tokens" target="_blank" style="color:var(--pr);">申請 Token →</a>
-      </div>
-      <div class="col mb12">
-        <div>
-          <label class="field-label">GitHub Token</label>
-          <div style="display:flex;gap:6px;">
-            <input id="gist-token" type="password" placeholder="ghp_..." style="font-family:monospace;font-size:13px;flex:1;margin-bottom:0;" autocomplete="new-password" autocorrect="off" autocapitalize="none" spellcheck="false"/>
-            <button onclick="toggleVis('gist-token',this)" style="background:rgba(0,0,0,.06);border:none;border-radius:8px;padding:0 10px;cursor:pointer;font-size:14px;flex-shrink:0;">👁</button>
-          </div>
-        </div>
-        <div>
-          <label class="field-label">Gist ID</label>
-          <input id="gist-id" placeholder="從 gist.github.com URL 複製"/>
-        </div>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-        <button class="btn btn-ghost" onclick="gistPush()" style="font-size:13px;">📤 推送到 Gist</button>
-        <button class="btn btn-ghost" onclick="gistPull()" style="font-size:13px;">📥 從 Gist 拉取</button>
-      </div>
-      <div id="gist-status" style="display:none;margin-top:10px;font-size:12px;padding:8px 12px;border-radius:10px;"></div>
-    </div>
-  </div>
+  <!-- 2026-07-17：移除獨立的 GitHub Gist 跨裝置同步卡片。wellness_v5 本來就在
+       cc_autosync.js 的白名單裡，靠 Control Center 自動備份即可；且原本的 gistPush()
+       寫法是「抓 Gist 裡第一個檔案直接覆蓋」，跟 Control Center 共用同一個 gist_id 時
+       有覆蓋掉別的 App 資料的風險，功能重複又有安全疑慮，直接移除。 -->
   <div class="glass card-p" style="border-color:rgba(160,90,80,.18);">
     <div class="c-toggle" data-card="c-danger" onclick="toggleCard('c-danger')">
       <div class="sec-title" style="color:var(--rose);margin-bottom:0;">🗑 資料管理</div>
@@ -1277,8 +1251,6 @@ function autoFillHDFields(text){const tf=(id,pats)=>{const el=document.getElemen
 // ── SETTINGS ──
 function loadProfile(){
   document.getElementById('p-groq').value=localStorage.getItem('groq_key')||'';
-  const gt=document.getElementById('gist-token');if(gt)gt.value=localStorage.getItem('gh_pat')||localStorage.getItem('gist_token')||'';
-  const gi=document.getElementById('gist-id');if(gi)gi.value=localStorage.getItem('gist_id')||'';
   renderPeople();renderCatManager();
   const er=document.getElementById('ce-emoji-row');if(er)er.innerHTML=EMOJIS.map(e=>`<button type="button" onclick="setCEIcon('${e}')" style="font-size:17px;background:none;border:none;cursor:pointer;padding:3px;">${e}</button>`).join('');
   const cd=document.getElementById('ce-colors');if(cd)cd.innerHTML=CAT_COLORS.map((col,i)=>`<div class="color-dot" style="background:${col};" onclick="pickCEColor(this,'${col}')"></div>`).join('');
@@ -1668,105 +1640,8 @@ function openImagePicker(targetId){
   inp.click();
 }
 
-// ── GIST SYNC ──
-function gistCreds(){
-  const token=(document.getElementById('gist-token')?.value||localStorage.getItem('gh_pat')||localStorage.getItem('gist_token')||'').trim();
-  const id=(document.getElementById('gist-id')?.value||localStorage.getItem('gist_id')||'').trim();
-  return{token,id};
-}
-function gistStatus(msg,ok){
-  const el=document.getElementById('gist-status');if(!el)return;
-  el.style.display='block';
-  el.style.background=ok?'rgba(88,128,104,.1)':'rgba(160,112,104,.1)';
-  el.style.color=ok?'#588068':'#A07068';
-  el.style.border='1px solid '+(ok?'rgba(88,128,104,.3)':'rgba(160,112,104,.3)');
-  el.textContent=msg;
-}
-async function gistPush(){
-  const{token,id}=gistCreds();
-  if(!token||!id){gistStatus('❌ 請先填入 Token 和 Gist ID',false);return;}
-  gistStatus('⏳ 推送中…',true);
-  try{
-    const content=JSON.stringify(DB,null,2);
-    // Step 1: get existing filename
-    const gr=await fetch('https://api.github.com/gists/'+id+'?t='+Date.now(),{
-      headers:{'Authorization':'Bearer '+token}});
-    if(gr.status===401)throw new Error('Token 無效（請確認是 Classic token，有勾 gist 權限）');
-    if(gr.status===404)throw new Error('找不到此 Gist，請確認 ID');
-    if(!gr.ok)throw new Error('讀取失敗 '+gr.status);
-    const gdata=await gr.json();
-    const targetFile=Object.keys(gdata.files||{})[0]||'wellness-data.json';
-    // Step 2: patch
-    // GitHub Gist API requires {files: {filename: {content}}} wrapper
-    const filesPayload={};
-    filesPayload[targetFile]={content:content};
-    const pr=await fetch('https://api.github.com/gists/'+id,{
-      method:'PATCH',
-      headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
-      body:JSON.stringify({files:filesPayload})});
-    if(!pr.ok){
-      const errBody=await pr.text().catch(()=>'');
-      throw new Error('PATCH 失敗 '+pr.status+' '+errBody.slice(0,80));
-    }
-    localStorage.setItem('gist_token',token);localStorage.setItem('gist_id',id);
-    gistStatus('✅ 推送成功（'+targetFile+'，'+content.length+' bytes）'+new Date().toLocaleTimeString('zh-TW'),true);
-  }catch(e){gistStatus('❌ 推送失敗：'+e.message,false);}
-}
-async function gistPull(){
-  const{token,id}=gistCreds();
-  if(!token||!id){gistStatus('❌ 請先填入 Token 和 Gist ID',false);return;}
-  gistStatus('⏳ 拉取中…',true);
-  try{
-    const r=await fetch('https://api.github.com/gists/'+id+'?t='+Date.now(),{headers:{'Authorization':'Bearer '+token,'Accept':'application/vnd.github+json'}});
-    if(r.status===401)throw new Error('Token 無效或已過期');
-    if(r.status===404)throw new Error('找不到此 Gist，請確認 ID');
-    if(!r.ok)throw new Error('HTTP '+r.status);
-    const data=await r.json();
-    const files=data.files||{};
-    const fileNames=Object.keys(files);
-    if(!fileNames.length)throw new Error('Gist 是空的，請先在 Mac 推送資料');
-
-    // fetch each file — use raw_url to avoid GitHub API truncation
-    async function fetchFileContent(f){
-      if(f.truncated&&f.raw_url){
-        // raw_url is publicly accessible — no Auth header avoids Safari CORS preflight
-        const rr=await fetch(f.raw_url);
-        if(!rr.ok)throw new Error('raw fetch failed '+rr.status);
-        return await rr.text();
-      }
-      return f.content||'';
-    }
-
-    let remote=null, usedFile='', diagLog=[];
-    const order=['wellness-data.json',...fileNames.filter(n=>n!=='wellness-data.json')];
-    for(const fname of order){
-      const f=files[fname];
-      if(!f){diagLog.push(fname+':不存在');continue;}
-      try{
-        const content=await fetchFileContent(f);
-        diagLog.push(fname+':長度'+content.length+'truncated='+f.truncated);
-        const parsed=JSON.parse(content);
-        diagLog.push(fname+':parsed OK entries='+JSON.stringify(parsed.entries).slice(0,40));
-        if(Array.isArray(parsed.entries)){
-          remote=parsed;usedFile=fname;break;
-        } else {
-          diagLog.push(fname+':entries不是陣列 type='+typeof parsed.entries);
-        }
-      }catch(e){diagLog.push(fname+':錯誤='+e.message.slice(0,60));}
-    }
-    if(!remote)throw new Error('找不到有效資料\n'+diagLog.join('\n'));
-
-    const existIds=new Set(DB.entries.map(e=>e.id));
-    const toAdd=remote.entries.filter(e=>!existIds.has(e.id));
-    DB.entries=DB.entries.concat(toAdd);
-    if(remote.profile)DB.profile={...DB.profile,...remote.profile};
-    if(remote.customCats)DB.customCats=remote.customCats||[];
-    if(remote.catOverrides)DB.catOverrides=remote.catOverrides||{};
-    localStorage.setItem('gist_token',token);localStorage.setItem('gist_id',id);
-    persist();renderHome();
-    gistStatus('✅ 拉取成功（'+usedFile+'），新增 '+toAdd.length+' 筆，共 '+DB.entries.length+' 筆',true);
-  }catch(e){gistStatus('❌ '+e.message,false);}
-}
+// 2026-07-17：獨立的 GIST SYNC（gistCreds/gistStatus/gistPush/gistPull）已移除，
+// 原因見上方設定卡片移除處的註解。
 
 // ── CUSTOM IMAGE EMOJI ──
 function openCustomEmojiPicker(targetInputId){
