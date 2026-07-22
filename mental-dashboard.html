@@ -972,14 +972,14 @@ function renderSub(){
   } else {
     const cat=all[activeCat];const isCustom=!!DB.customCats.find(c=>c.id===activeCat);
     if(isCustom||!cat?.sub?.length){lbl.textContent='描述發生了什麼：';const cur=selFactors.find(f=>f.category===activeCat);content.innerHTML=`<input id="custom-detail" placeholder="簡單描述…" value="${cur?cur.detail:''}" oninput="updateCustomDetail(this.value)"/>`;}
-    else{lbl.textContent='選擇細項：';content.innerHTML=`<div class="chip-wrap">${cat.sub.map(s=>{const sel=selFactors.some(f=>f.category===activeCat&&f.detail===s);const eid='sc-'+activeCat+'-'+s.replace(/\W/g,'_');return`<button class="chip${sel?' sel':''}" id="${eid}" onclick="toggleSub('${activeCat}','${s}')">${s}</button>`;}).join('')}</div>`;}
+    else{lbl.textContent='選擇細項：';content.innerHTML=`<div class="chip-wrap">${cat.sub.map(s=>{const sel=selFactors.some(f=>f.category===activeCat&&f.detail===s);const eid='sc-'+activeCat+'-'+s;return`<button class="chip${sel?' sel':''}" id="${eid}" onclick="toggleSub('${activeCat}','${s}')">${s}</button>`;}).join('')}</div>`;}
   }
   renderSelF();
 }
 function togglePerson(pid,name){const idx=selFactors.findIndex(f=>f.category==='friends'&&f.detail===name&&!f.isFree);if(idx>-1){selFactors.splice(idx,1);const el=document.getElementById('pchip-'+pid);if(el)el.className='chip';}else{selFactors.push({category:'friends',detail:name});const el=document.getElementById('pchip-'+pid);if(el)el.className='chip sel';}renderSelF();}
 function updateFriendFree(v){selFactors=selFactors.filter(f=>!(f.category==='friends'&&f.isFree));if(v.trim())selFactors.push({category:'friends',detail:v.trim(),isFree:true});renderSelF();}
 function updateCustomDetail(v){selFactors=selFactors.filter(f=>f.category!==activeCat);if(v.trim())selFactors.push({category:activeCat,detail:v.trim()});renderSelF();}
-function toggleSub(cat,sub){const eid='sc-'+cat+'-'+sub.replace(/\W/g,'_');const idx=selFactors.findIndex(f=>f.category===cat&&f.detail===sub);if(idx>-1){selFactors.splice(idx,1);const el=document.getElementById(eid);if(el)el.className='chip';}else{selFactors.push({category:cat,detail:sub});const el=document.getElementById(eid);if(el)el.className='chip sel';}renderSelF();}
+function toggleSub(cat,sub){const eid='sc-'+cat+'-'+sub;const idx=selFactors.findIndex(f=>f.category===cat&&f.detail===sub);if(idx>-1){selFactors.splice(idx,1);const el=document.getElementById(eid);if(el)el.className='chip';}else{selFactors.push({category:cat,detail:sub});const el=document.getElementById(eid);if(el)el.className='chip sel';}renderSelF();}
 function renderSelF(){const all=getCats();document.getElementById('sel-factors').innerHTML=selFactors.map(f=>{const col=all[f.category]?.color||'#536070';return`<span style="display:inline-block;padding:4px 12px;border-radius:100px;font-size:12px;background:${col}18;color:${col};border:1px solid ${col}28;">${all[f.category]?.icon||''} ${f.detail}</span>`;}).join('');}
 
 function toggleCatForm(){const f=document.getElementById('cat-form');f.style.display=f.style.display==='none'||f.style.display===''?'block':'none';}
