@@ -37,7 +37,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue','PingFang TC'
 .field-label{font-size:10px;color:var(--faint);font-weight:600;letter-spacing:.08em;text-transform:uppercase;display:block;margin-bottom:6px;}
 input,textarea,select{font-family:inherit;background:var(--bg2);border:1.5px solid var(--border);border-radius:12px;padding:11px 14px;font-size:15px;color:var(--ink);width:100%;outline:none;transition:border-color .2s;appearance:none;}
 input:focus,textarea:focus,select:focus{border-color:var(--pr);}
-textarea{resize:none;line-height:1.7;}
+textarea{resize:vertical;line-height:1.7;min-height:2.4em;}
 input[type=range]{height:7px;border-radius:4px;background:var(--bg3);padding:0;border:none;cursor:pointer;-webkit-appearance:none;}
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:#fff;border:2.5px solid var(--pr);box-shadow:0 2px 8px rgba(0,0,0,.12);}
 input[type=color]{-webkit-appearance:none;border:2px solid var(--border);background:none;padding:0;width:30px;height:30px;border-radius:50%;cursor:pointer;}
@@ -804,7 +804,7 @@ function editEntry(id){
       </div>
       <div>
         <label style="font-size:10px;color:var(--faint);font-weight:600;letter-spacing:.08em;text-transform:uppercase;display:block;margin-bottom:6px;">筆記</label>
-        <textarea id="edit-notes" rows="4" style="font-family:inherit;background:var(--bg2);border:1.5px solid var(--border);border-radius:12px;padding:10px 14px;font-size:14px;color:var(--ink);width:100%;outline:none;resize:none;line-height:1.7;">${e.notes||''}</textarea>
+        <textarea id="edit-notes" rows="4" style="font-family:inherit;background:var(--bg2);border:1.5px solid var(--border);border-radius:12px;padding:10px 14px;font-size:14px;color:var(--ink);width:100%;outline:none;resize:vertical;min-height:2.4em;line-height:1.7;">${e.notes||''}</textarea>
       </div>
       <div>
         <label style="font-size:10px;color:var(--faint);font-weight:600;letter-spacing:.08em;text-transform:uppercase;display:block;margin-bottom:6px;">Categories</label>
