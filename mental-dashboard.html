@@ -1153,7 +1153,7 @@ function buildFactorSentiment(entries){
 }
 
 async function runAI(){
-  const key=localStorage.getItem('groq_key')||'';const noKey=document.getElementById('ai-no-key');const loading=document.getElementById('ai-loading');const result=document.getElementById('ai-result');const errEl=document.getElementById('ai-error');const empty=document.getElementById('ai-empty');const btn=document.getElementById('ai-run-btn');
+  const key=localStorage.getItem('groq_key')||localStorage.getItem('tina_groq')||localStorage.getItem('oasis_groq_key')||'';const noKey=document.getElementById('ai-no-key');const loading=document.getElementById('ai-loading');const result=document.getElementById('ai-result');const errEl=document.getElementById('ai-error');const empty=document.getElementById('ai-empty');const btn=document.getElementById('ai-run-btn');
   if(!key){noKey.style.display='block';empty.style.display='none';return;}
   noKey.style.display='none';result.style.display='none';errEl.style.display='none';empty.style.display='none';loading.style.display='block';btn.disabled=true;btn.textContent='分析中…';
   try{
@@ -1190,7 +1190,7 @@ function addHDFile(file){const reader=new FileReader();reader.onload=e=>{hdImage
 function renderHDThumbs(){const wrap=document.getElementById('hd-thumbs'),area=document.getElementById('hd-parse-area');if(!wrap)return;if(!hdImages.length){wrap.style.display='none';if(area)area.style.display='none';return;}wrap.style.display='flex';if(area)area.style.display='flex';wrap.innerHTML=hdImages.map((img,i)=>`<div style="position:relative;width:72px;"><img src="data:${img.mime};base64,${img.base64}" style="width:72px;height:72px;object-fit:cover;border-radius:10px;border:1px solid var(--border);display:block;"/><button onclick="removeHDImg(${i})" style="position:absolute;top:-5px;right:-5px;width:18px;height:18px;border-radius:50%;border:none;background:#888;color:#fff;font-size:10px;cursor:pointer;line-height:18px;text-align:center;padding:0;">✕</button></div>`).join('');}
 function removeHDImg(i){hdImages.splice(i,1);renderHDThumbs();}
 async function parseHDChart(){
-  const key=localStorage.getItem('groq_key')||'';const loadEl=document.getElementById('hd-parse-loading');const resultEl=document.getElementById('hd-parse-result');const errEl=document.getElementById('hd-parse-error');const btn=document.querySelector('#hd-parse-area button');
+  const key=localStorage.getItem('groq_key')||localStorage.getItem('tina_groq')||localStorage.getItem('oasis_groq_key')||'';const loadEl=document.getElementById('hd-parse-loading');const resultEl=document.getElementById('hd-parse-result');const errEl=document.getElementById('hd-parse-error');const btn=document.querySelector('#hd-parse-area button');
   if(!key){errEl.textContent='請先在 Settings 中設定 Groq API Key。';errEl.style.display='block';return;}
   if(!hdImages.length){errEl.textContent='請先選擇圖片。';errEl.style.display='block';return;}
   loadEl.style.display='block';resultEl.style.display='none';errEl.style.display='none';if(btn){btn.disabled=true;btn.textContent='解析中…';}
@@ -1250,7 +1250,7 @@ function autoFillHDFields(text){const tf=(id,pats)=>{const el=document.getElemen
 
 // ── SETTINGS ──
 function loadProfile(){
-  document.getElementById('p-groq').value=localStorage.getItem('groq_key')||'';
+  document.getElementById('p-groq').value=localStorage.getItem('groq_key')||localStorage.getItem('tina_groq')||localStorage.getItem('oasis_groq_key')||'';
   renderPeople();renderCatManager();
   const er=document.getElementById('ce-emoji-row');if(er)er.innerHTML=EMOJIS.map(e=>`<button type="button" onclick="setCEIcon('${e}')" style="font-size:17px;background:none;border:none;cursor:pointer;padding:3px;">${e}</button>`).join('');
   const cd=document.getElementById('ce-colors');if(cd)cd.innerHTML=CAT_COLORS.map((col,i)=>`<div class="color-dot" style="background:${col};" onclick="pickCEColor(this,'${col}')"></div>`).join('');
