@@ -1164,7 +1164,11 @@ async function runAI(){
     const summaries=scoped.slice(0,30).map(e=>{const d=new Date(e.timestamp).toLocaleDateString('zh-TW',{month:'numeric',day:'numeric'});const f=(e.impactFactors||[]).map(x=>`${cats[x.category]?.label||x.category}:${x.detail}`).join(',');return`[${d}] ${e.moodScore}/10 情緒:${(e.emotionTags||[]).join(',')||'無'} 因子:${f||'無'}${e.notes?' 備注:'+e.notes.slice(0,40):''}`; }).join('\n');
     const p=DB.profile;const pc=[p.hdType?`類型:${p.hdType}`:'',p.hdStrategy?`策略:${p.hdStrategy}`:'',p.hdNotSelf?`非自己:${p.hdNotSelf}`:''].filter(Boolean).join(' ');
     const prompt=`你是溫暖的身心靈顧問。用戶心情記錄（${scoped.length}筆，均分${avg}/10）：\n\n${summaries}\n\n${pc?'人類圖：'+pc:''}\n\n請用繁體中文溫暖分析：\n1. 📊 整體趨勢\n2. 🔍 主要觸發因子\n3. 💡 隱藏規律\n4. 🌿 一個行動建議\n\n語氣像好朋友，每段2-3句。`;
-    const resp=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},body:JSON.stringify({model:'llama-3.3-70b-versatile',messages:[{role:'user',content:prompt}],max_tokens:800,temperature:.7})});
+    // 08-19修正：llama-3.3-70b-versatile已於2026-08-16被Groq官方棄用，四輪跨生態系
+    // 掃描都漏掉這個repo，一直呼叫必定400失敗。改openai/gpt-oss-120b（reasoning model），
+    // max_tokens跟著拉高、加reasoning_effort:'low'控制推理耗用（不需要reasoning_format，
+    // 該參數對gpt-oss系列不支援）
+    const resp=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},body:JSON.stringify({model:'openai/gpt-oss-120b',messages:[{role:'user',content:prompt}],max_tokens:1200,temperature:.7,reasoning_effort:'low'})});
     if(!resp.ok){const err=await resp.json().catch(()=>({}));throw new Error(err.error?.message||'API 錯誤 '+resp.status);}
     const data=await resp.json();loading.style.display='none';result.textContent=data.choices?.[0]?.message?.content||'（無回應）';result.style.display='block';
   }catch(e){loading.style.display='none';errEl.textContent='⚠️ '+e.message;errEl.style.display='block';}
