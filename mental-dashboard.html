@@ -1170,14 +1170,37 @@ async function runAI(){
     // 該參數對gpt-oss系列不支援）
     // 08-24修正：gpt-oss reasoning model偶發把max_tokens全吃在隱藏推理上，
     // 回傳finish_reason==='length'且content為空字串，需自動放大額度重試一次
-    const _aiOnce=async(mx)=>{
-      const resp=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},body:JSON.stringify({model:'openai/gpt-oss-120b',messages:[{role:'user',content:prompt}],max_tokens:mx,temperature:.7,reasoning_effort:'low'})});
-      if(!resp.ok){const err=await resp.json().catch(()=>({}));throw new Error(err.error?.message||'API 錯誤 '+resp.status);}
-      const data=await resp.json();const choice=data.choices?.[0];
-      return{content:choice?.message?.content||'',finishReason:choice?.finish_reason};
+    // 08-24再修：補齊429限流退避與model層級故障備援（gpt-oss-120b→gpt-oss-20b），
+    // 呼應daily-optimizer commit 6a79507的Groq棄用前科；三層防護互不干擾
+    const GROQ_PRIMARY_MODEL='openai/gpt-oss-120b',GROQ_BACKUP_MODEL='openai/gpt-oss-20b';
+    const _aiOnce=async(model,mx)=>{
+      for(let attempt=0;attempt<3;attempt++){
+        const resp=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},body:JSON.stringify({model,messages:[{role:'user',content:prompt}],max_tokens:mx,temperature:.7,reasoning_effort:'low'})});
+        if(resp.status===429&&attempt<2){
+          const ra=Number(resp.headers.get('retry-after'));
+          await new Promise(res=>setTimeout(res,(ra>0?ra:3)*1000));
+          continue;
+        }
+        if(!resp.ok){
+          let detail='';try{const ej=await resp.json();detail=ej?.error?.message||'';}catch(_e){}
+          const err=new Error('API 錯誤 '+resp.status+(detail?'：'+detail:''));
+          err.status=resp.status;err.detail=detail;
+          throw err;
+        }
+        const data=await resp.json();const choice=data.choices?.[0];
+        return{content:choice?.message?.content||'',finishReason:choice?.finish_reason};
+      }
     };
-    let aiRes=await _aiOnce(1200);
-    if(!aiRes.content.trim()&&aiRes.finishReason==='length'){aiRes=await _aiOnce(Math.round(1200*1.8));}
+    const _modelLooksDown=(e)=>e.status>=500||/decommission|not[ _-]?found|does not exist|invalid model|model_not_active/i.test(e.detail||'');
+    let aiModel=GROQ_PRIMARY_MODEL,aiRes;
+    try{
+      aiRes=await _aiOnce(aiModel,1200);
+    }catch(e){
+      if(!_modelLooksDown(e))throw e;
+      aiModel=GROQ_BACKUP_MODEL;
+      aiRes=await _aiOnce(aiModel,1200);
+    }
+    if(!aiRes.content.trim()&&aiRes.finishReason==='length'){aiRes=await _aiOnce(aiModel,Math.round(1200*1.8));}
     loading.style.display='none';result.textContent=aiRes.content||'（無回應）';result.style.display='block';
   }catch(e){loading.style.display='none';errEl.textContent='⚠️ '+e.message;errEl.style.display='block';}
   btn.disabled=false;btn.textContent='重新分析';
