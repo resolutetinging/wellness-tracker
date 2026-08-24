@@ -1168,9 +1168,17 @@ async function runAI(){
     // 掃描都漏掉這個repo，一直呼叫必定400失敗。改openai/gpt-oss-120b（reasoning model），
     // max_tokens跟著拉高、加reasoning_effort:'low'控制推理耗用（不需要reasoning_format，
     // 該參數對gpt-oss系列不支援）
-    const resp=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},body:JSON.stringify({model:'openai/gpt-oss-120b',messages:[{role:'user',content:prompt}],max_tokens:1200,temperature:.7,reasoning_effort:'low'})});
-    if(!resp.ok){const err=await resp.json().catch(()=>({}));throw new Error(err.error?.message||'API 錯誤 '+resp.status);}
-    const data=await resp.json();loading.style.display='none';result.textContent=data.choices?.[0]?.message?.content||'（無回應）';result.style.display='block';
+    // 08-24修正：gpt-oss reasoning model偶發把max_tokens全吃在隱藏推理上，
+    // 回傳finish_reason==='length'且content為空字串，需自動放大額度重試一次
+    const _aiOnce=async(mx)=>{
+      const resp=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},body:JSON.stringify({model:'openai/gpt-oss-120b',messages:[{role:'user',content:prompt}],max_tokens:mx,temperature:.7,reasoning_effort:'low'})});
+      if(!resp.ok){const err=await resp.json().catch(()=>({}));throw new Error(err.error?.message||'API 錯誤 '+resp.status);}
+      const data=await resp.json();const choice=data.choices?.[0];
+      return{content:choice?.message?.content||'',finishReason:choice?.finish_reason};
+    };
+    let aiRes=await _aiOnce(1200);
+    if(!aiRes.content.trim()&&aiRes.finishReason==='length'){aiRes=await _aiOnce(Math.round(1200*1.8));}
+    loading.style.display='none';result.textContent=aiRes.content||'（無回應）';result.style.display='block';
   }catch(e){loading.style.display='none';errEl.textContent='⚠️ '+e.message;errEl.style.display='block';}
   btn.disabled=false;btn.textContent='重新分析';
 }
