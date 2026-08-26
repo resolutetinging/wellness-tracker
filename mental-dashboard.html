@@ -1200,7 +1200,7 @@ async function runAI(){
       aiModel=GROQ_BACKUP_MODEL;
       aiRes=await _aiOnce(aiModel,1200);
     }
-    if(!aiRes.content.trim()&&aiRes.finishReason==='length'){aiRes=await _aiOnce(aiModel,Math.round(1200*1.8));}
+    if(aiRes.finishReason==='length'){aiRes=await _aiOnce(aiModel,Math.round(1200*1.8));} // 08-26：不再要求content空白，殘句同樣算截斷
     loading.style.display='none';result.textContent=aiRes.content||'（無回應）';result.style.display='block';
   }catch(e){loading.style.display='none';errEl.textContent='⚠️ '+e.message;errEl.style.display='block';}
   btn.disabled=false;btn.textContent='重新分析';
