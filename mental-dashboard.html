@@ -407,6 +407,29 @@ html.in-iframe .mb12{margin-bottom:8px;}
     <div id="backfill-status" style="display:none;margin-top:10px;font-size:13px;color:var(--muted);"></div>
   </div>
   <div class="glass card-p mb12">
+    <div class="sec-title">📅 歷史空白日備填</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.6;">為指定日期區間內完全沒有記錄的每一天，新增一筆指定心情分數的備填記錄（不會動到已有記錄的日子）。備填記錄會另外標記，可用下方按鈕整批清除重來。</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+      <div>
+        <label class="field-label">起始日期</label>
+        <input type="date" id="backfill-mood-start" style="width:100%;box-sizing:border-box;font-family:inherit;background:var(--bg2);border:1.5px solid var(--border);border-radius:12px;padding:10px 14px;font-size:14px;color:var(--ink);outline:none;"/>
+      </div>
+      <div>
+        <label class="field-label">結束日期</label>
+        <input type="date" id="backfill-mood-end" style="width:100%;box-sizing:border-box;font-family:inherit;background:var(--bg2);border:1.5px solid var(--border);border-radius:12px;padding:10px 14px;font-size:14px;color:var(--ink);outline:none;"/>
+      </div>
+    </div>
+    <div style="margin-bottom:12px;">
+      <label class="field-label">預設心情分數（1-10）</label>
+      <input type="number" id="backfill-mood-score" min="1" max="10" step="1" value="5" style="width:100%;box-sizing:border-box;font-family:inherit;background:var(--bg2);border:1.5px solid var(--border);border-radius:12px;padding:10px 14px;font-size:14px;color:var(--ink);outline:none;"/>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn btn-pr btn-sm" onclick="backfillMoodDefaults()">▶ 執行備填</button>
+      <button class="btn btn-ghost btn-sm" onclick="clearBackfilled()">🗑 清除備填記錄</button>
+    </div>
+    <div id="backfill-mood-status" style="display:none;margin-top:10px;font-size:13px;color:var(--muted);"></div>
+  </div>
+  <div class="glass card-p mb12">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
       <div class="sec-title" style="margin-bottom:0;">👥 我的人際圈</div>
       <button class="btn btn-pr btn-sm" style="padding:7px 14px;font-size:13px;" onclick="showAddPeopleCat()">＋ 新增分類</button>
@@ -1470,6 +1493,45 @@ function backfillCategories(){
   if(count>0)persist();
   const statusEl=document.getElementById('backfill-status');
   if(statusEl){statusEl.style.display='block';statusEl.textContent=`已回填 ${count} 筆`;}
+}
+// 09-29：使用者要求一鍵讓歷史空白日填上指定心情分數，日期區間+分數皆可設定。
+// 「當天有沒有記錄」比對邏輯沿用renderCalendar()既有的年/月/日本地時間比對方式（726行），
+// 不用UTC字串切割，避免時區邊界把前一天/後一天誤判成有記錄或沒記錄。
+function backfillMoodDefaults(){
+  const statusEl=document.getElementById('backfill-mood-status');
+  function showStatus(msg){if(statusEl){statusEl.style.display='block';statusEl.textContent=msg;}}
+  const startStr=document.getElementById('backfill-mood-start').value;
+  const endStr=document.getElementById('backfill-mood-end').value;
+  const scoreVal=+document.getElementById('backfill-mood-score').value;
+  if(!startStr||!endStr){showStatus('請先選擇起始與結束日期');return;}
+  if(!Number.isInteger(scoreVal)||scoreVal<1||scoreVal>10){showStatus('心情分數請輸入 1-10 的整數');return;}
+  const start=new Date(startStr+'T00:00:00');
+  const end=new Date(endStr+'T00:00:00');
+  if(start>end){showStatus('起始日期不能晚於結束日期');return;}
+  const proceed=confirm(`此動作將為 ${startStr} ~ ${endStr} 期間內沒有記錄的每一天，新增一筆心情分數 ${scoreVal}/10 的備填記錄。建議先確認已備份資料（上方「匯出 JSON」）。是否繼續？`);
+  if(!proceed)return;
+  let count=0;
+  for(let d=new Date(start);d<=end;d.setDate(d.getDate()+1)){
+    const y=d.getFullYear(),m=d.getMonth(),day=d.getDate();
+    const hasEntry=DB.entries.some(e=>{const dt=new Date(e.timestamp);return dt.getFullYear()===y&&dt.getMonth()===m&&dt.getDate()===day;});
+    if(!hasEntry){
+      const ts=new Date(y,m,day,12,0,0); // 中午12點，避免落在日期邊界
+      DB.entries.push({id:'bf_'+ts.getTime()+'_'+count,timestamp:ts.toISOString(),moodScore:scoreVal,emotionTags:[],impactFactors:[],notes:'',categories:[],isBackfilled:true});
+      count++;
+    }
+  }
+  if(count>0)persist();
+  showStatus(`已備填 ${count} 天（${startStr} ~ ${endStr}，心情分數 ${scoreVal}/10）`);
+  renderHome();
+}
+function clearBackfilled(){
+  const cnt=DB.entries.filter(e=>e.isBackfilled).length;
+  if(!cnt){alert('目前沒有備填記錄');return;}
+  if(!confirm(`清除全部 ${cnt} 筆備填記錄？此動作不可還原。`))return;
+  DB.entries=DB.entries.filter(e=>!e.isBackfilled);
+  persist();renderHome();
+  const statusEl=document.getElementById('backfill-mood-status');
+  if(statusEl){statusEl.style.display='block';statusEl.textContent=`已清除 ${cnt} 筆備填記錄`;}
 }
 function importData(input){
   const file = input.files[0];
