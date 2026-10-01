@@ -537,6 +537,10 @@ html.in-iframe .mb12{margin-bottom:8px;}
 <script>
 'use strict';
 const KEY='wellness_v5';
+// XSS防護：_esc()用於一般文字內容/雙引號屬性值；_escJsAttr()用於 onclick="fn('${x}')" 這種
+// 雙層情境（先做JS字串跳脫防止提早結束'...'，再做HTML屬性跳脫防止跳出"..."屬性本身）
+function _esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+function _escJsAttr(s){return String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function toggleCard(id){
   const h=document.querySelector('[data-card="'+id+'"]');
   const b=document.getElementById(id+'-bd');
@@ -567,7 +571,7 @@ function renderEmotionChips(){
   if(!el)return;
   const customs=getCustomEmos();
   const allDefault=EMOTIONS.map(t=>`<button class="chip${selEmotions.includes(t)?' sel':''}" id="ec-${t}" onclick="toggleEmo('${t}')">${t}</button>`).join('');
-  const allCustom=customs.map((t,i)=>`<span class="chip-custom${selEmotions.includes(t)?' sel':''}" id="ec-${t}" onclick="toggleEmoCustom('${t}',this)"><span>${t}</span><span class="chip-rm" onclick="removeCustomEmo(${i},event)">✕</span></span>`).join('');
+  const allCustom=customs.map((t,i)=>`<span class="chip-custom${selEmotions.includes(t)?' sel':''}" id="ec-${_esc(t)}" onclick="toggleEmoCustom('${_escJsAttr(t)}',this)"><span>${_esc(t)}</span><span class="chip-rm" onclick="removeCustomEmo(${i},event)">✕</span></span>`).join('');
   const addBtn=`<button class="chip-add" onclick="openEmoAdd()">＋ 自訂</button>`;
   el.innerHTML=allDefault+allCustom+addBtn;
 }
@@ -732,7 +736,7 @@ function renderHome(){
   const te=todayEs[0];
   document.getElementById('home-warn').innerHTML=buildWarn();
   const tc=document.getElementById('home-today');
-  if(te){const mi=moodInfo(te.moodScore);const cnt=todayEs.length>1?`<span style="font-size:11px;background:var(--pr-bg);color:var(--pr-d);padding:2px 8px;border-radius:100px;margin-left:6px;">×${todayEs.length}</span>`:'';const tags=(te.emotionTags||[]).map(t=>`<span style="background:var(--pr-bg);color:var(--pr-d);padding:3px 12px;border-radius:100px;font-size:12px;">${t}</span>`).join('');tc.innerHTML=`<div class="sb"><div><div class="field-label">今日心情${cnt}</div><div style="display:flex;align-items:center;gap:10px;margin-top:4px;"><span style="font-size:34px;">${mi.emoji}</span><div><div style="font-size:22px;font-weight:600;color:${mi.hex};">${te.moodScore}/10</div><div style="font-size:12px;color:var(--muted);">${mi.label}</div></div></div></div><button class="btn btn-pr btn-sm" onclick="go('tracker')">＋ 新增</button></div>${tags?`<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:10px;">${tags}</div>`:''}`;}
+  if(te){const mi=moodInfo(te.moodScore);const cnt=todayEs.length>1?`<span style="font-size:11px;background:var(--pr-bg);color:var(--pr-d);padding:2px 8px;border-radius:100px;margin-left:6px;">×${todayEs.length}</span>`:'';const tags=(te.emotionTags||[]).map(t=>`<span style="background:var(--pr-bg);color:var(--pr-d);padding:3px 12px;border-radius:100px;font-size:12px;">${_esc(t)}</span>`).join('');tc.innerHTML=`<div class="sb"><div><div class="field-label">今日心情${cnt}</div><div style="display:flex;align-items:center;gap:10px;margin-top:4px;"><span style="font-size:34px;">${mi.emoji}</span><div><div style="font-size:22px;font-weight:600;color:${mi.hex};">${te.moodScore}/10</div><div style="font-size:12px;color:var(--muted);">${mi.label}</div></div></div></div><button class="btn btn-pr btn-sm" onclick="go('tracker')">＋ 新增</button></div>${tags?`<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:10px;">${tags}</div>`:''}`;}
   else tc.innerHTML=`<div class="sb"><div><div class="field-label">今日心情</div><div style="font-size:14px;color:var(--muted);margin-top:8px;">今天尚未記錄</div></div><button class="btn btn-pr btn-sm" onclick="go('tracker')">＋ 記錄</button></div>`;
   const all=DB.entries;
   const avg=all.length?(all.reduce((s,e)=>s+e.moodScore,0)/all.length).toFixed(1):'--';
@@ -776,7 +780,7 @@ function openDayModal(y,m,d){
   const es=DB.entries.filter(e=>{const dt=new Date(e.timestamp);return dt.getFullYear()===y&&dt.getMonth()===m-1&&dt.getDate()===d;}).sort((a,b)=>new Date(a.timestamp)-new Date(b.timestamp));
   document.getElementById('modal-title').textContent=y+'年'+m+'月'+d+'日';
   const cats=getCats();
-  let body=es.length?es.map(e=>{const mi=moodInfo(e.moodScore);const factors=(e.impactFactors||[]).map(f=>{const col=cats[f.category]?.color||'#888';return`<span style="font-size:11px;padding:2px 8px;border-radius:100px;background:${col}18;color:${col};">${cats[f.category]?.icon||''} ${f.detail}</span>`;}).join('');const tags=(e.emotionTags||[]).map(t=>`<span style="font-size:11px;padding:2px 8px;border-radius:100px;background:var(--pr-bg);color:var(--pr-d);">${t}</span>`).join('');const catPills=(e.categories||[]).map(c=>`<span style="font-size:11px;padding:2px 8px;border-radius:100px;background:rgba(88,128,104,.12);color:#588068;border:1px solid rgba(88,128,104,.28);">🗂 ${c}</span>`).join('');return`<div style="padding:14px;border-radius:14px;background:var(--bg2);margin-bottom:10px;"><div class="sb mb8"><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:24px;">${mi.emoji}</span><span style="font-size:20px;font-weight:700;color:${mi.hex};">${e.moodScore}/10</span><span style="font-size:12px;color:var(--muted);">${new Date(e.timestamp).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'})}</span></div><div style="display:flex;gap:6px;"><button onclick="editEntry('${e.id}')" style="font-size:13px;padding:4px 10px;border-radius:8px;border:1px solid var(--border);background:transparent;cursor:pointer;color:var(--muted);font-family:inherit;">編輯</button><button class="e-del" onclick="delEntryModal('${e.id}')">🗑</button></div></div>${catPills?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">${catPills}</div>`:''}${tags?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">${tags}</div>`:''}${factors?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">${factors}</div>`:''}${e.notes?`<div style="font-size:13px;line-height:1.6;padding-top:6px;border-top:1px solid var(--border);white-space:pre-wrap;word-break:break-word;">${e.notes}</div>`:''}</div>`;}).join(''):'<div style="text-align:center;padding:20px;color:var(--muted);font-size:14px;">這天沒有記錄</div>';
+  let body=es.length?es.map(e=>{const mi=moodInfo(e.moodScore);const factors=(e.impactFactors||[]).map(f=>{const col=cats[f.category]?.color||'#888';return`<span style="font-size:11px;padding:2px 8px;border-radius:100px;background:${col}18;color:${col};">${_esc(cats[f.category]?.icon||'')} ${_esc(f.detail)}</span>`;}).join('');const tags=(e.emotionTags||[]).map(t=>`<span style="font-size:11px;padding:2px 8px;border-radius:100px;background:var(--pr-bg);color:var(--pr-d);">${_esc(t)}</span>`).join('');const catPills=(e.categories||[]).map(c=>`<span style="font-size:11px;padding:2px 8px;border-radius:100px;background:rgba(88,128,104,.12);color:#588068;border:1px solid rgba(88,128,104,.28);">🗂 ${_esc(c)}</span>`).join('');return`<div style="padding:14px;border-radius:14px;background:var(--bg2);margin-bottom:10px;"><div class="sb mb8"><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:24px;">${mi.emoji}</span><span style="font-size:20px;font-weight:700;color:${mi.hex};">${e.moodScore}/10</span><span style="font-size:12px;color:var(--muted);">${new Date(e.timestamp).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'})}</span></div><div style="display:flex;gap:6px;"><button onclick="editEntry('${e.id}')" style="font-size:13px;padding:4px 10px;border-radius:8px;border:1px solid var(--border);background:transparent;cursor:pointer;color:var(--muted);font-family:inherit;">編輯</button><button class="e-del" onclick="delEntryModal('${e.id}')">🗑</button></div></div>${catPills?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">${catPills}</div>`:''}${tags?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">${tags}</div>`:''}${factors?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">${factors}</div>`:''}${e.notes?`<div style="font-size:13px;line-height:1.6;padding-top:6px;border-top:1px solid var(--border);white-space:pre-wrap;word-break:break-word;">${_esc(e.notes)}</div>`:''}</div>`;}).join(''):'<div style="text-align:center;padding:20px;color:var(--muted);font-size:14px;">這天沒有記錄</div>';
   body+=`<button class="btn btn-ghost" onclick="closeModal();openTrackerWithDate(${y},${m},${d});" style="margin-top:8px;">＋ 補記這天</button>`;
   document.getElementById('modal-body').innerHTML=body;
   document.getElementById('modal-bg').style.display='flex';
@@ -799,7 +803,7 @@ function editEntry(id){
   }).join('');
   const factorsHtml=Object.entries(cats).map(([k,cat])=>{
     const sel=editFactors.some(f=>f.category===k);
-    return`<button type="button" onclick="toggleEditCat(this,'${k}')" data-cat="${k}" style="display:inline-block;padding:5px 12px;border-radius:100px;font-size:12px;cursor:pointer;border:1.5px solid ${sel?cat.color:'var(--border)'};background:${sel?cat.color:'transparent'};color:${sel?'#fff':'var(--ink2)'};margin:2px;font-family:inherit;white-space:nowrap;">${cat.icon} ${cat.label}</button>`;
+    return`<button type="button" onclick="toggleEditCat(this,'${k}')" data-cat="${k}" style="display:inline-block;padding:5px 12px;border-radius:100px;font-size:12px;cursor:pointer;border:1.5px solid ${sel?cat.color:'var(--border)'};background:${sel?cat.color:'transparent'};color:${sel?'#fff':'var(--ink2)'};margin:2px;font-family:inherit;white-space:nowrap;">${_esc(cat.icon)} ${_esc(cat.label)}</button>`;
   }).join('');
   const eDateStr=new Date(e.timestamp).toISOString().split('T')[0];
   document.getElementById('modal-body').innerHTML=`
@@ -827,7 +831,7 @@ function editEntry(id){
       </div>
       <div>
         <label style="font-size:10px;color:var(--faint);font-weight:600;letter-spacing:.08em;text-transform:uppercase;display:block;margin-bottom:6px;">筆記</label>
-        <textarea id="edit-notes" rows="4" style="font-family:inherit;background:var(--bg2);border:1.5px solid var(--border);border-radius:12px;padding:10px 14px;font-size:14px;color:var(--ink);width:100%;outline:none;resize:vertical;min-height:2.4em;line-height:1.7;">${e.notes||''}</textarea>
+        <textarea id="edit-notes" rows="4" style="font-family:inherit;background:var(--bg2);border:1.5px solid var(--border);border-radius:12px;padding:10px 14px;font-size:14px;color:var(--ink);width:100%;outline:none;resize:vertical;min-height:2.4em;line-height:1.7;">${_esc(e.notes||'')}</textarea>
       </div>
       <div>
         <label style="font-size:10px;color:var(--faint);font-weight:600;letter-spacing:.08em;text-transform:uppercase;display:block;margin-bottom:6px;">Categories</label>
@@ -870,18 +874,18 @@ function renderEditSubAll(){
 function renderEditSubSection(cat,cats){
   const catDef=cats[cat];if(!catDef)return'';
   const ss='margin-top:0;padding:10px 12px;background:var(--bg2);border-radius:10px;border:1px solid var(--border);';
-  const lbl=`<div style="font-size:11px;color:var(--faint);margin-bottom:6px;">${catDef.icon||''} ${catDef.label}</div>`;
+  const lbl=`<div style="font-size:11px;color:var(--faint);margin-bottom:6px;">${_esc(catDef.icon||'')} ${_esc(catDef.label)}</div>`;
   if(cat==='friends'){
     const people=DB.profile?.people||[];
-    const pHtml=people.length?people.map(p=>{const sel=editFactors.some(f=>f.category==='friends'&&f.detail===p.name&&!f.isFree);const pE=p.name.replace(/'/g,"\\'");return`<button class="chip${sel?' sel':''}" onclick="toggleEditPerson('${p.id}','${pE}')" style="margin:2px;">👤 ${p.name}</button>`;}).join(''):`<span style="font-size:12px;color:var(--faint);">可在 Settings 新增人物</span>`;
+    const pHtml=people.length?people.map(p=>{const sel=editFactors.some(f=>f.category==='friends'&&f.detail===p.name&&!f.isFree);return`<button class="chip${sel?' sel':''}" onclick="toggleEditPerson('${p.id}','${_escJsAttr(p.name)}')" style="margin:2px;">👤 ${_esc(p.name)}</button>`;}).join(''):`<span style="font-size:12px;color:var(--faint);">可在 Settings 新增人物</span>`;
     const curFree=editFactors.find(f=>f.category==='friends'&&f.isFree);
-    return`<div style="${ss}">${lbl}<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">${pHtml}</div><input id="edit-friend-free" placeholder="或自由填寫…" value="${curFree?curFree.detail:''}" oninput="updateEditFriendFree(this.value)" style="width:100%;box-sizing:border-box;background:var(--bg);border:1.5px solid var(--border);border-radius:8px;padding:6px 10px;font-size:13px;color:var(--ink);font-family:inherit;"/></div>`;
+    return`<div style="${ss}">${lbl}<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">${pHtml}</div><input id="edit-friend-free" placeholder="或自由填寫…" value="${_esc(curFree?curFree.detail:'')}" oninput="updateEditFriendFree(this.value)" style="width:100%;box-sizing:border-box;background:var(--bg);border:1.5px solid var(--border);border-radius:8px;padding:6px 10px;font-size:13px;color:var(--ink);font-family:inherit;"/></div>`;
   }else if(catDef.sub&&catDef.sub.length){
-    const subHtml=catDef.sub.map(s=>{const sel=editFactors.some(f=>f.category===cat&&f.detail===s);const sE=s.replace(/'/g,"\\'");return`<button class="chip${sel?' sel':''}" onclick="toggleEditSubChip('${cat}','${sE}')" style="margin:2px;">${s}</button>`;}).join('');
+    const subHtml=catDef.sub.map(s=>{const sel=editFactors.some(f=>f.category===cat&&f.detail===s);return`<button class="chip${sel?' sel':''}" onclick="toggleEditSubChip('${cat}','${_escJsAttr(s)}')" style="margin:2px;">${_esc(s)}</button>`;}).join('');
     return`<div style="${ss}">${lbl}<div style="display:flex;flex-wrap:wrap;gap:4px;">${subHtml}</div></div>`;
   }else{
     const cur=editFactors.find(f=>f.category===cat);const catE=cat.replace(/'/g,"\\'");
-    return`<div style="${ss}">${lbl}<input id="edit-custom-${cat}" placeholder="描述發生了什麼…" value="${cur?cur.detail:''}" oninput="updateEditCustom('${catE}',this.value)" style="width:100%;box-sizing:border-box;background:var(--bg);border:1.5px solid var(--border);border-radius:8px;padding:6px 10px;font-size:13px;color:var(--ink);font-family:inherit;"/></div>`;
+    return`<div style="${ss}">${lbl}<input id="edit-custom-${cat}" placeholder="描述發生了什麼…" value="${_esc(cur?cur.detail:'')}" oninput="updateEditCustom('${catE}',this.value)" style="width:100%;box-sizing:border-box;background:var(--bg);border:1.5px solid var(--border);border-radius:8px;padding:6px 10px;font-size:13px;color:var(--ink);font-family:inherit;"/></div>`;
   }
 }
 function toggleEditPerson(pid,name){
@@ -932,7 +936,7 @@ function buildPie(freq,state,activeKey){
   const ctx=document.getElementById('chart-pie').getContext('2d');
   let labels,data,colors,hint;
   if(state==='main'){labels=Object.values(freq).map(v=>v.label);data=Object.values(freq).map(v=>v.count);colors=Object.values(freq).map(v=>v.color);hint='點擊扇形查看細項';}
-  else{const subs=freq[activeKey].subs;labels=Object.keys(subs);data=Object.values(subs);const base=freq[activeKey].color;colors=labels.map((_,i)=>base+(Math.round(255*(0.35+i/Math.max(labels.length,1)*0.65)).toString(16).padStart(2,'0')));hint=`${freq[activeKey].label} · <span style="cursor:pointer;text-decoration:underline;" onclick="buildPie(window._wfreq,'main',null);document.getElementById('pie-hint').innerHTML='點擊扇形查看細項'">← 返回</span>`;}
+  else{const subs=freq[activeKey].subs;labels=Object.keys(subs);data=Object.values(subs);const base=freq[activeKey].color;colors=labels.map((_,i)=>base+(Math.round(255*(0.35+i/Math.max(labels.length,1)*0.65)).toString(16).padStart(2,'0')));hint=`${_esc(freq[activeKey].label)} · <span style="cursor:pointer;text-decoration:underline;" onclick="buildPie(window._wfreq,'main',null);document.getElementById('pie-hint').innerHTML='點擊扇形查看細項'">← 返回</span>`;}
   window._wfreq=freq;document.getElementById('pie-hint').innerHTML=hint;
   pChart=new Chart(ctx,{type:'pie',data:{labels,datasets:[{data,backgroundColor:colors,borderColor:'rgba(252,251,250,.9)',borderWidth:2}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:11},color:'#7A7470',boxWidth:9,padding:9}},tooltip:{callbacks:{label:c=>`${c.label}：${c.raw}次`},backgroundColor:'rgba(252,251,250,.97)',bodyColor:'#242220',cornerRadius:10}},onClick:(_,items)=>{if(state==='main'&&items.length>0){const k=Object.keys(freq)[items[0].index];if(Object.keys(freq[k]?.subs||{}).length>0)buildPie(freq,'sub',k);}}}});
 }
@@ -973,7 +977,7 @@ function toggleEmo(t){const i=selEmotions.indexOf(t);i>-1?selEmotions.splice(i,1
 
 function renderCatRow(){
   const all=getCats();
-  let h=Object.entries(all).map(([k,cat])=>`<button class="chip" id="cb-${k}" style="white-space:nowrap;" onclick="toggleCat('${k}')">${cat.icon} ${cat.label}</button>`).join('');
+  let h=Object.entries(all).map(([k,cat])=>`<button class="chip" id="cb-${k}" style="white-space:nowrap;" onclick="toggleCat('${k}')">${_esc(cat.icon)} ${_esc(cat.label)}</button>`).join('');
   h+=`<button class="chip" style="white-space:nowrap;border-style:dashed;" onclick="toggleCatForm()">＋ 新增類別</button>`;
   document.getElementById('cat-row').innerHTML=h;
   if(activeCat)styleBtn(activeCat,true);
@@ -988,14 +992,14 @@ function renderSub(){
   if(activeCat==='friends'){
     const people=DB.profile.people||[];
     lbl.textContent='選擇相關人物，或描述事件：';
-    let h=people.length?`<div class="chip-wrap mb12">${people.map(p=>{const sel=selFactors.some(f=>f.category==='friends'&&f.detail===p.name&&!f.isFree);return`<button class="chip${sel?' sel':''}" id="pchip-${p.id}" onclick="togglePerson('${p.id}','${p.name.replace(/'/g,"\\'")}')">👤 ${p.name}</button>`;}).join('')}</div>`:'<div style="font-size:12px;color:var(--faint);margin-bottom:10px;">可在 Settings 新增人物</div>';
+    let h=people.length?`<div class="chip-wrap mb12">${people.map(p=>{const sel=selFactors.some(f=>f.category==='friends'&&f.detail===p.name&&!f.isFree);return`<button class="chip${sel?' sel':''}" id="pchip-${p.id}" onclick="togglePerson('${p.id}','${_escJsAttr(p.name)}')">👤 ${_esc(p.name)}</button>`;}).join('')}</div>`:'<div style="font-size:12px;color:var(--faint);margin-bottom:10px;">可在 Settings 新增人物</div>';
     const curF=selFactors.find(f=>f.category==='friends'&&f.isFree);
-    h+=`<label class="field-label">自由填寫（選填）</label><input id="friend-free" placeholder="例：今天和朋友聊天…" value="${curF?curF.detail:''}" oninput="updateFriendFree(this.value)"/>`;
+    h+=`<label class="field-label">自由填寫（選填）</label><input id="friend-free" placeholder="例：今天和朋友聊天…" value="${_esc(curF?curF.detail:'')}" oninput="updateFriendFree(this.value)"/>`;
     content.innerHTML=h;
   } else {
     const cat=all[activeCat];const isCustom=!!DB.customCats.find(c=>c.id===activeCat);
-    if(isCustom||!cat?.sub?.length){lbl.textContent='描述發生了什麼：';const cur=selFactors.find(f=>f.category===activeCat);content.innerHTML=`<input id="custom-detail" placeholder="簡單描述…" value="${cur?cur.detail:''}" oninput="updateCustomDetail(this.value)"/>`;}
-    else{lbl.textContent='選擇細項：';content.innerHTML=`<div class="chip-wrap">${cat.sub.map(s=>{const sel=selFactors.some(f=>f.category===activeCat&&f.detail===s);const eid='sc-'+activeCat+'-'+s;return`<button class="chip${sel?' sel':''}" id="${eid}" onclick="toggleSub('${activeCat}','${s}')">${s}</button>`;}).join('')}</div>`;}
+    if(isCustom||!cat?.sub?.length){lbl.textContent='描述發生了什麼：';const cur=selFactors.find(f=>f.category===activeCat);content.innerHTML=`<input id="custom-detail" placeholder="簡單描述…" value="${_esc(cur?cur.detail:'')}" oninput="updateCustomDetail(this.value)"/>`;}
+    else{lbl.textContent='選擇細項：';content.innerHTML=`<div class="chip-wrap">${cat.sub.map(s=>{const sel=selFactors.some(f=>f.category===activeCat&&f.detail===s);const eid='sc-'+activeCat+'-'+s;return`<button class="chip${sel?' sel':''}" id="${_esc(eid)}" onclick="toggleSub('${activeCat}','${_escJsAttr(s)}')">${_esc(s)}</button>`;}).join('')}</div>`;}
   }
   renderSelF();
 }
@@ -1003,7 +1007,7 @@ function togglePerson(pid,name){const idx=selFactors.findIndex(f=>f.category==='
 function updateFriendFree(v){selFactors=selFactors.filter(f=>!(f.category==='friends'&&f.isFree));if(v.trim())selFactors.push({category:'friends',detail:v.trim(),isFree:true});renderSelF();}
 function updateCustomDetail(v){selFactors=selFactors.filter(f=>f.category!==activeCat);if(v.trim())selFactors.push({category:activeCat,detail:v.trim()});renderSelF();}
 function toggleSub(cat,sub){const eid='sc-'+cat+'-'+sub;const idx=selFactors.findIndex(f=>f.category===cat&&f.detail===sub);if(idx>-1){selFactors.splice(idx,1);const el=document.getElementById(eid);if(el)el.className='chip';}else{selFactors.push({category:cat,detail:sub});const el=document.getElementById(eid);if(el)el.className='chip sel';}renderSelF();}
-function renderSelF(){const all=getCats();document.getElementById('sel-factors').innerHTML=selFactors.map(f=>{const col=all[f.category]?.color||'#536070';return`<span style="display:inline-block;padding:4px 12px;border-radius:100px;font-size:12px;background:${col}18;color:${col};border:1px solid ${col}28;">${all[f.category]?.icon||''} ${f.detail}</span>`;}).join('');}
+function renderSelF(){const all=getCats();document.getElementById('sel-factors').innerHTML=selFactors.map(f=>{const col=all[f.category]?.color||'#536070';return`<span style="display:inline-block;padding:4px 12px;border-radius:100px;font-size:12px;background:${col}18;color:${col};border:1px solid ${col}28;">${_esc(all[f.category]?.icon||'')} ${_esc(f.detail)}</span>`;}).join('');}
 
 function toggleCatForm(){const f=document.getElementById('cat-form');f.style.display=f.style.display==='none'||f.style.display===''?'block':'none';}
 function closeCatForm(){document.getElementById('cat-form').style.display='none';}
@@ -1086,10 +1090,10 @@ function renderInsights(){
   const allLow=l3.length===3&&l3.every(e=>e.moodScore<=3);
   const best=all.reduce((a,b)=>a.moodScore>b.moodScore?a:b,all[0]);const worst=all.reduce((a,b)=>a.moodScore<b.moodScore?a:b,all[0]);
   const freq=computeFreq(all);const cats=getCats();
-  const impH=Object.entries(freq).sort(([,a],[,b])=>b.count-a.count).map(([cat,val])=>{const pct=Math.min(+(val.count/all.length*100).toFixed(0),100);const uniqueDetails=[...new Set(all.flatMap(e=>(e.impactFactors||[]).filter(f=>f.category===cat&&f.detail).map(f=>f.detail)))];const subs=uniqueDetails.map(d=>{const dEsc=d.replace(/'/g,"\\'");return`<span style="font-size:11px;color:var(--muted);background:var(--bg3);border-radius:100px;padding:2px 10px;cursor:pointer;" onclick="showFactorHistory('${cat}','${dEsc}')">${d}</span>`;}).join('');return`<div style="margin-bottom:13px;"><div class="sb mb8"><span style="font-size:13px;">${cats[cat]?.icon||''} ${val.label}</span><span style="font-size:12px;color:var(--muted);">${val.count}次</span></div><div class="bar-bg"><div class="bar-fill" style="width:${pct}%;background:${val.color};"></div></div>${subs?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;">${subs}</div>`:''}</div>`;}).join('');
+  const impH=Object.entries(freq).sort(([,a],[,b])=>b.count-a.count).map(([cat,val])=>{const pct=Math.min(+(val.count/all.length*100).toFixed(0),100);const uniqueDetails=[...new Set(all.flatMap(e=>(e.impactFactors||[]).filter(f=>f.category===cat&&f.detail).map(f=>f.detail)))];const subs=uniqueDetails.map(d=>{const dEsc=_escJsAttr(d);return`<span style="font-size:11px;color:var(--muted);background:var(--bg3);border-radius:100px;padding:2px 10px;cursor:pointer;" onclick="showFactorHistory('${cat}','${dEsc}')">${_esc(d)}</span>`;}).join('');return`<div style="margin-bottom:13px;"><div class="sb mb8"><span style="font-size:13px;">${_esc(cats[cat]?.icon||'')} ${_esc(val.label)}</span><span style="font-size:12px;color:var(--muted);">${val.count}次</span></div><div class="bar-bg"><div class="bar-fill" style="width:${pct}%;background:${val.color};"></div></div>${subs?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;">${subs}</div>`:''}</div>`;}).join('');
   const sentH=buildFactorSentiment(all);
   body.innerHTML=`<div class="glass card-p mb12"><div class="sec-title">🧭 決策狀態</div>${[['近3天均分',l3avg+'分'],['建議決策',allLow?'⚠️ 暫緩':'✅ 可行'],['人類圖策略',DB.profile.hdStrategy||'未設定'],['內在權威',DB.profile.hdAuthority||'未設定']].map(([l,v])=>`<div class="sb" style="padding:9px 0;border-bottom:1px solid var(--border);"><span style="font-size:13px;color:var(--muted);">${l}</span><span style="font-size:13px;font-weight:500;">${v}</span></div>`).join('')}</div>
-  <div class="two-col"><div class="glass" style="padding:15px;"><div style="font-size:11px;color:var(--muted);margin-bottom:6px;">🏆 Best Day</div><div style="font-size:26px;">${moodInfo(best.moodScore).emoji}</div><div style="font-size:19px;font-weight:700;color:#588068;">${best.moodScore}/10</div><div style="font-size:11px;color:var(--muted);margin-top:2px;">${new Date(best.timestamp).toLocaleDateString('zh-TW',{month:'numeric',day:'numeric'})}</div><div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:6px;">${(best.impactFactors||[]).map(f=>{const col=cats[f.category]?.color||'#888';return`<span style="font-size:10px;padding:2px 7px;border-radius:100px;background:${col}18;color:${col};">${f.detail}</span>`;}).join('')}</div></div><div class="glass" style="padding:15px;"><div style="font-size:11px;color:var(--muted);margin-bottom:6px;">💤 Lowest Day</div><div style="font-size:26px;">${moodInfo(worst.moodScore).emoji}</div><div style="font-size:19px;font-weight:700;color:#A07068;">${worst.moodScore}/10</div><div style="font-size:11px;color:var(--muted);margin-top:2px;">${new Date(worst.timestamp).toLocaleDateString('zh-TW',{month:'numeric',day:'numeric'})}</div><div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:6px;">${(worst.impactFactors||[]).map(f=>{const col=cats[f.category]?.color||'#888';return`<span style="font-size:10px;padding:2px 7px;border-radius:100px;background:${col}18;color:${col};">${f.detail}</span>`;}).join('')}</div></div></div>
+  <div class="two-col"><div class="glass" style="padding:15px;"><div style="font-size:11px;color:var(--muted);margin-bottom:6px;">🏆 Best Day</div><div style="font-size:26px;">${moodInfo(best.moodScore).emoji}</div><div style="font-size:19px;font-weight:700;color:#588068;">${best.moodScore}/10</div><div style="font-size:11px;color:var(--muted);margin-top:2px;">${new Date(best.timestamp).toLocaleDateString('zh-TW',{month:'numeric',day:'numeric'})}</div><div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:6px;">${(best.impactFactors||[]).map(f=>{const col=cats[f.category]?.color||'#888';return`<span style="font-size:10px;padding:2px 7px;border-radius:100px;background:${col}18;color:${col};">${_esc(f.detail)}</span>`;}).join('')}</div></div><div class="glass" style="padding:15px;"><div style="font-size:11px;color:var(--muted);margin-bottom:6px;">💤 Lowest Day</div><div style="font-size:26px;">${moodInfo(worst.moodScore).emoji}</div><div style="font-size:19px;font-weight:700;color:#A07068;">${worst.moodScore}/10</div><div style="font-size:11px;color:var(--muted);margin-top:2px;">${new Date(worst.timestamp).toLocaleDateString('zh-TW',{month:'numeric',day:'numeric'})}</div><div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:6px;">${(worst.impactFactors||[]).map(f=>{const col=cats[f.category]?.color||'#888';return`<span style="font-size:10px;padding:2px 7px;border-radius:100px;background:${col}18;color:${col};">${_esc(f.detail)}</span>`;}).join('')}</div></div></div>
   <div class="glass card-p mb12"><div class="sec-title">🎯 影響因子排行</div>${impH||'<div style="font-size:13px;color:var(--muted);">尚無資料</div>'}</div>
   <div class="glass card-p mb12"><div class="sec-title">🔍 Factor Sentiment</div><div style="font-size:12px;color:var(--muted);margin-bottom:12px;">各因子細項對你情緒的影響傾向</div>${sentH}</div>
   <div class="glass card-p mb12"><div class="sec-title">📁 依 Categories 檢視</div><div class="chip-wrap mb12" id="cat-filter-row">${FIXED_CATEGORIES.map(c=>`<button class="chip" onclick="filterByCategory('${c}',this)">${c}</button>`).join('')}<button class="chip" onclick="filterByCategory('',this)">全部</button></div><div id="cat-filter-result" style="font-size:13px;color:var(--faint);text-align:center;padding:6px 0;">點選分類查看對應記錄</div></div>
@@ -1160,14 +1164,14 @@ function buildFactorSentiment(entries){
     const hCnt=catItems.filter(v=>sentRank(v)===0).length,nCnt=catItems.filter(v=>sentRank(v)===1).length,lCnt=catItems.filter(v=>sentRank(v)===2).length;
     const badge=`<span style="font-size:10px;color:var(--faint);margin-left:6px;">${hCnt?`<span style="color:#588068;">↑${hCnt}</span> `:''}${nCnt?`<span style="color:#8A7848;">—${nCnt}</span> `:''}${lCnt?`<span style="color:#A07068;">↓${lCnt}</span>`:''}</span>`;
     html+=`<div style="margin-bottom:10px;border:1px solid var(--border);border-radius:10px;overflow:hidden;">`;
-    html+=`<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;cursor:pointer;background:var(--bg2);" onclick="toggleFSCat('${uid}')"><span style="font-size:13px;font-weight:600;color:${col};">${catDef?.icon||''} ${catDef?.label||cat}${badge}</span><span id="${uid}-ar" style="font-size:10px;color:var(--faint);">▶</span></div>`;
+    html+=`<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;cursor:pointer;background:var(--bg2);" onclick="toggleFSCat('${uid}')"><span style="font-size:13px;font-weight:600;color:${col};">${_esc(catDef?.icon||'')} ${_esc(catDef?.label||cat)}${badge}</span><span id="${uid}-ar" style="font-size:10px;color:var(--faint);">▶</span></div>`;
     html+=`<div id="${uid}" style="display:none;padding:10px 12px;">`;
     catItems.forEach((v,i)=>{
       const avg=(v.sum/v.count).toFixed(1);const pH=v.high/v.count,pL=v.low/v.count;
       let s,sc,si;if(pH>=.5){s='助力';sc='#588068';si='↑';}else if(pL>=.5){s='負向';sc='#A07068';si='↓';}else{s='中性';sc='#8A7848';si='—';}
-      const wL=Math.round(pL*100),wH=Math.round(pH*100),wM=100-wL-wH;const dEsc=v.detail.replace(/'/g,"\\'");
+      const wL=Math.round(pL*100),wH=Math.round(pH*100),wM=100-wL-wH;const dEsc=_escJsAttr(v.detail);
       const border=i<catItems.length-1?'border-bottom:1px solid var(--border);':'';
-      html+=`<div style="padding-bottom:10px;margin-bottom:10px;${border}cursor:pointer;" onclick="showFactorHistory('${cat}','${dEsc}')"><div class="sb mb8"><span style="font-size:13px;font-weight:500;">${v.detail}</span><span style="font-size:12px;font-weight:600;color:${sc};">${si} ${s}</span></div><div style="display:flex;height:5px;border-radius:3px;overflow:hidden;gap:1px;margin-bottom:5px;"><div style="width:${wL}%;background:#A07068;"></div><div style="width:${wM}%;background:var(--bg3);"></div><div style="width:${wH}%;background:#588068;"></div></div><div style="display:flex;justify-content:space-between;font-size:10px;color:var(--faint);"><span>負向 ${v.low}</span><span>均分 ${avg}</span><span>助力 ${v.high}</span></div></div>`;
+      html+=`<div style="padding-bottom:10px;margin-bottom:10px;${border}cursor:pointer;" onclick="showFactorHistory('${cat}','${dEsc}')"><div class="sb mb8"><span style="font-size:13px;font-weight:500;">${_esc(v.detail)}</span><span style="font-size:12px;font-weight:600;color:${sc};">${si} ${s}</span></div><div style="display:flex;height:5px;border-radius:3px;overflow:hidden;gap:1px;margin-bottom:5px;"><div style="width:${wL}%;background:#A07068;"></div><div style="width:${wM}%;background:var(--bg3);"></div><div style="width:${wH}%;background:#588068;"></div></div><div style="display:flex;justify-content:space-between;font-size:10px;color:var(--faint);"><span>負向 ${v.low}</span><span>均分 ${avg}</span><span>助力 ${v.high}</span></div></div>`;
     });
     html+='</div></div>';
   });
@@ -1245,7 +1249,7 @@ function saveHDProfile(){DB.profile={...DB.profile,hdType:document.getElementByI
 function onHDImageSelect(input){hdImages=[];Array.from(input.files).forEach(f=>addHDFile(f));}
 function onHDImageAdd(input){Array.from(input.files).forEach(f=>addHDFile(f));}
 function addHDFile(file){const reader=new FileReader();reader.onload=e=>{hdImages.push({base64:e.target.result.split(',')[1],mime:file.type||'image/png',name:file.name});renderHDThumbs();};reader.readAsDataURL(file);}
-function renderHDThumbs(){const wrap=document.getElementById('hd-thumbs'),area=document.getElementById('hd-parse-area');if(!wrap)return;if(!hdImages.length){wrap.style.display='none';if(area)area.style.display='none';return;}wrap.style.display='flex';if(area)area.style.display='flex';wrap.innerHTML=hdImages.map((img,i)=>`<div style="position:relative;width:72px;"><img src="data:${img.mime};base64,${img.base64}" style="width:72px;height:72px;object-fit:cover;border-radius:10px;border:1px solid var(--border);display:block;"/><button onclick="removeHDImg(${i})" style="position:absolute;top:-5px;right:-5px;width:18px;height:18px;border-radius:50%;border:none;background:#888;color:#fff;font-size:10px;cursor:pointer;line-height:18px;text-align:center;padding:0;">✕</button></div>`).join('');}
+function renderHDThumbs(){const wrap=document.getElementById('hd-thumbs'),area=document.getElementById('hd-parse-area');if(!wrap)return;if(!hdImages.length){wrap.style.display='none';if(area)area.style.display='none';return;}wrap.style.display='flex';if(area)area.style.display='flex';wrap.innerHTML=hdImages.map((img,i)=>`<div style="position:relative;width:72px;"><img src="data:${_esc(img.mime)};base64,${_esc(img.base64)}" style="width:72px;height:72px;object-fit:cover;border-radius:10px;border:1px solid var(--border);display:block;"/><button onclick="removeHDImg(${i})" style="position:absolute;top:-5px;right:-5px;width:18px;height:18px;border-radius:50%;border:none;background:#888;color:#fff;font-size:10px;cursor:pointer;line-height:18px;text-align:center;padding:0;">✕</button></div>`).join('');}
 function removeHDImg(i){hdImages.splice(i,1);renderHDThumbs();}
 async function parseHDChart(){
   const key=localStorage.getItem('groq_key')||localStorage.getItem('tina_groq')||localStorage.getItem('oasis_groq_key')||'';const loadEl=document.getElementById('hd-parse-loading');const resultEl=document.getElementById('hd-parse-result');const errEl=document.getElementById('hd-parse-error');const btn=document.querySelector('#hd-parse-area button');
@@ -1300,8 +1304,8 @@ async function parseHDChart(){
   }catch(e){loadEl.style.display='none';errEl.textContent='⚠️ '+e.message;errEl.style.display='block';}
   if(btn){btn.disabled=false;btn.textContent='✨ 重新解析';}
 }
-function renderHDResult(text){const sections=text.split(/^## /m).filter(Boolean);let html='';sections.forEach(sec=>{const lines=sec.split('\n');const title=lines[0].trim();const body=lines.slice(1).join('\n').trim().replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>').replace(/^- (.+)$/gm,'<div style="padding:2px 0 2px 10px;border-left:2px solid var(--lavender);margin:4px 0;font-size:13px;">$1</div>').replace(/\n/g,'<br/>');html+=`<div style="margin-bottom:12px;"><div style="font-size:10px;font-weight:700;color:var(--lavender);letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px;">${title}</div><div style="font-size:13px;line-height:1.75;">${body}</div></div><div style="height:1px;background:var(--border);margin-bottom:12px;"></div>`;});return`<div style="background:var(--lav-bg);border-radius:14px;padding:14px;">${html}</div>`;}
-function showManual(text){const mc=document.getElementById('hd-manual-card'),mb=document.getElementById('hd-manual-body');if(!mc||!mb)return;const m=text.match(/## 人生使用手冊\n([\s\S]+?)(?=\n## |$)/);if(m){mb.innerHTML=m[1].replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>').replace(/\n/g,'<br/>');mc.style.display='block';}}
+function renderHDResult(text){const sections=text.split(/^## /m).filter(Boolean);let html='';sections.forEach(sec=>{const lines=sec.split('\n');const title=_esc(lines[0].trim());const body=_esc(lines.slice(1).join('\n').trim()).replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>').replace(/^- (.+)$/gm,'<div style="padding:2px 0 2px 10px;border-left:2px solid var(--lavender);margin:4px 0;font-size:13px;">$1</div>').replace(/\n/g,'<br/>');html+=`<div style="margin-bottom:12px;"><div style="font-size:10px;font-weight:700;color:var(--lavender);letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px;">${title}</div><div style="font-size:13px;line-height:1.75;">${body}</div></div><div style="height:1px;background:var(--border);margin-bottom:12px;"></div>`;});return`<div style="background:var(--lav-bg);border-radius:14px;padding:14px;">${html}</div>`;}
+function showManual(text){const mc=document.getElementById('hd-manual-card'),mb=document.getElementById('hd-manual-body');if(!mc||!mb)return;const m=text.match(/## 人生使用手冊\n([\s\S]+?)(?=\n## |$)/);if(m){mb.innerHTML=_esc(m[1]).replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>').replace(/\n/g,'<br/>');mc.style.display='block';}}
 function copyHDResult(){const text=DB.profile.hdParseResult||'';navigator.clipboard.writeText(text).then(()=>{const btn=document.querySelector('[onclick="copyHDResult()"]');if(btn){btn.textContent='已複製 ✓';setTimeout(()=>btn.textContent='複製',2000);}});}
 function autoFillHDFields(text){const tf=(id,pats)=>{const el=document.getElementById(id);if(!el)return;for(const p of pats){if(text.includes(p)){for(const o of el.options){if(o.value.includes(p)||o.text.includes(p)){el.value=o.value;return;}}}}};tf('p-hdt',['Generator','Manifesting Generator','Projector','Manifestor','Reflector']);tf('p-hddef',['Single','Split','Triple','Quadruple']);const pm=text.match(/Profile[^\d]*(\d\/\d)/);if(pm){const e=document.getElementById('p-hdprofile');if(e)for(const o of e.options){if(o.value.startsWith(pm[1])){e.value=o.value;break;}}}const cm=text.match(/輪迴交叉[^\n：:]*[：::]\s*([^\n]+)/);if(cm){const e=document.getElementById('p-hdcross');if(e)e.value=cm[1].trim();}}
 (function(){function ready(){const dz=document.getElementById('hd-dropzone');if(!dz)return;dz.addEventListener('dragover',e=>{e.preventDefault();dz.style.borderColor='var(--lavender)';});dz.addEventListener('dragleave',()=>dz.style.borderColor='');dz.addEventListener('drop',e=>{e.preventDefault();dz.style.borderColor='';Array.from(e.dataTransfer.files).filter(f=>f.type.startsWith('image/')).forEach(addHDFile);});}document.addEventListener('DOMContentLoaded',ready);setTimeout(ready,500);})();
@@ -1315,12 +1319,12 @@ function loadProfile(){
   initCardStates();
 }
 function _personRowHtml(pr){
-  const safe=pr.name.replace(/'/g,"\\'");
+  const safe=_escJsAttr(pr.name);
   const cats=DB.profile.peopleCats||[];
-  const catSel=cats.length?`<select style="font-size:11px;padding:3px 6px;border-radius:6px;border:1px solid var(--border);background:var(--bg2);color:var(--muted);margin:0;max-width:76px;cursor:pointer;" onchange="setPersonCat('${pr.id}',this.value)"><option value=""${!pr.catId?' selected':''}>未分類</option>${cats.map(c=>`<option value="${c.id}"${pr.catId===c.id?' selected':''}>${c.name}</option>`).join('')}</select>`:'';
+  const catSel=cats.length?`<select style="font-size:11px;padding:3px 6px;border-radius:6px;border:1px solid var(--border);background:var(--bg2);color:var(--muted);margin:0;max-width:76px;cursor:pointer;" onchange="setPersonCat('${pr.id}',this.value)"><option value=""${!pr.catId?' selected':''}>未分類</option>${cats.map(c=>`<option value="${c.id}"${pr.catId===c.id?' selected':''}>${_esc(c.name)}</option>`).join('')}</select>`:'';
   return`<div class="person-row" id="pr-${pr.id}">
     <span style="font-size:15px;">👤</span>
-    <span style="flex:1;font-size:14px;">${pr.name}</span>
+    <span style="flex:1;font-size:14px;">${_esc(pr.name)}</span>
     ${catSel}
     <button class="icon-btn" style="font-size:11px;padding:3px 8px;border-radius:6px;width:auto;color:var(--muted);border:1px solid var(--border);background:var(--bg2);" onclick="startEditPerson('${pr.id}','${safe}')">改名</button>
     <button class="icon-btn" onclick="removePerson('${pr.id}')">✕</button>
@@ -1334,13 +1338,13 @@ function renderPeople(){
   let html='';
   // 各分類群組
   cats.forEach(cat=>{
-    const safeCat=cat.name.replace(/'/g,"\\'");
+    const safeCat=_escJsAttr(cat.name);
     const group=people.filter(pr=>pr.catId===cat.id);
     const isC=!!_pcatCollapsed[cat.id];
     html+=`<div class="pcat-group" id="pcg-${cat.id}">
       <div class="pcat-hd${isC?' coll':''}" onclick="togglePeopleCat('${cat.id}')">
         <span class="pcat-chev">▾</span>
-        <span class="pcat-name">${cat.name}</span>
+        <span class="pcat-name">${_esc(cat.name)}</span>
         <span class="pcat-count">${group.length} 人</span>
         <button class="icon-btn" style="font-size:11px;padding:3px 8px;border-radius:6px;width:auto;color:var(--muted);border:1px solid var(--border);background:var(--bg2);" onclick="startEditCat('${cat.id}','${safeCat}');event.stopPropagation()">改名</button>
         <button class="icon-btn" onclick="deletePeopleCat('${cat.id}');event.stopPropagation()">✕</button>
@@ -1404,7 +1408,7 @@ function startEditCat(id,name){
   const hd=document.querySelector('#pcg-'+id+' .pcat-hd');
   if(!hd)return;
   hd.outerHTML=`<div class="pcat-hd" id="pchd-edit-${id}" style="gap:6px;" onclick="">
-    <input id="eci-${id}" value="${name}" style="flex:1;min-width:0;margin:0;padding:5px 8px;font-size:13px;border-radius:8px;border:1.5px solid var(--pr);background:var(--bg);color:var(--ink);font-family:inherit;" onkeydown="if(event.key==='Enter')saveEditCat('${id}');if(event.key==='Escape')renderPeople()"/>
+    <input id="eci-${id}" value="${_esc(name)}" style="flex:1;min-width:0;margin:0;padding:5px 8px;font-size:13px;border-radius:8px;border:1.5px solid var(--pr);background:var(--bg);color:var(--ink);font-family:inherit;" onkeydown="if(event.key==='Enter')saveEditCat('${id}');if(event.key==='Escape')renderPeople()"/>
     <button class="btn btn-pr btn-sm" style="padding:5px 10px;font-size:12px;" onclick="saveEditCat('${id}')">確認</button>
     <button class="btn btn-ghost btn-sm" style="padding:5px 8px;font-size:12px;" onclick="renderPeople()">取消</button>
   </div>`;
@@ -1452,7 +1456,7 @@ function startEditPerson(id,name){
   if(!row)return;
   row.innerHTML=`
     <span style="font-size:15px;">👤</span>
-    <input id="ep-${id}" value="${name}" style="flex:1;min-width:0;margin:0 6px 0 0;padding:5px 8px;font-size:13px;border-radius:8px;border:1.5px solid var(--pr);background:var(--bg);color:var(--ink);font-family:inherit;" onkeydown="if(event.key==='Enter')saveEditPerson('${id}');if(event.key==='Escape')renderPeople()"/>
+    <input id="ep-${id}" value="${_esc(name)}" style="flex:1;min-width:0;margin:0 6px 0 0;padding:5px 8px;font-size:13px;border-radius:8px;border:1.5px solid var(--pr);background:var(--bg);color:var(--ink);font-family:inherit;" onkeydown="if(event.key==='Enter')saveEditPerson('${id}');if(event.key==='Escape')renderPeople()"/>
     <button class="btn btn-pr btn-sm" style="padding:5px 10px;font-size:12px;" onclick="saveEditPerson('${id}')">確認</button>
     <button class="btn btn-ghost btn-sm" style="padding:5px 8px;font-size:12px;" onclick="renderPeople()">取消</button>`;
   setTimeout(()=>{const inp=document.getElementById('ep-'+id);if(inp){inp.focus();inp.select();}},30);
@@ -1586,9 +1590,9 @@ function clearAll(){if(!confirm('確定清除所有記錄？'))return;if(!confir
 
 // Cat Manager
 let ceKey=null,ceIsDefault=false,ceTempColor=CAT_COLORS[0];
-function renderCatManager(){const el=document.getElementById('cat-manager-list');if(!el)return;const all=getCats();el.innerHTML=Object.entries(all).map(([k,cat])=>`<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);cursor:pointer;" onclick="openCatEditor('${k}')"><span style="font-size:20px;">${cat.icon}</span><div style="flex:1;"><div style="font-size:14px;font-weight:500;">${cat.label}</div><div style="font-size:11px;color:var(--faint);">${(cat.sub||[]).length}個細項${DEFAULT_CATS[k]?' · 預設':''}</div></div><div style="width:16px;height:16px;border-radius:50%;background:${cat.color||'#888'};flex-shrink:0;"></div><span style="color:var(--faint);font-size:14px;">›</span></div>`).join('');}
+function renderCatManager(){const el=document.getElementById('cat-manager-list');if(!el)return;const all=getCats();el.innerHTML=Object.entries(all).map(([k,cat])=>`<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);cursor:pointer;" onclick="openCatEditor('${k}')"><span style="font-size:20px;">${_esc(cat.icon)}</span><div style="flex:1;"><div style="font-size:14px;font-weight:500;">${_esc(cat.label)}</div><div style="font-size:11px;color:var(--faint);">${(cat.sub||[]).length}個細項${DEFAULT_CATS[k]?' · 預設':''}</div></div><div style="width:16px;height:16px;border-radius:50%;background:${cat.color||'#888'};flex-shrink:0;"></div><span style="color:var(--faint);font-size:14px;">›</span></div>`).join('');}
 function openCatEditor(k){ceKey=k;const all=getCats();const cat=all[k];ceIsDefault=!!DEFAULT_CATS[k];ceTempColor=cat.color||CAT_COLORS[0];document.getElementById('cat-editor-title').textContent='編輯：'+cat.label;document.getElementById('ce-icon').value=cat.icon||'';document.getElementById('ce-name').value=cat.label||'';const cd=document.getElementById('ce-colors');if(cd)cd.innerHTML=CAT_COLORS.map(col=>`<div class="color-dot${col===ceTempColor?' sel':''}" style="background:${col};" onclick="pickCEColor(this,'${col}')"></div>`).join('');const cp=document.getElementById('ce-color-picker');if(cp)cp.value=ceTempColor;renderCESubs(cat.sub||[]);document.getElementById('ce-delete-btn').style.display=ceIsDefault?'none':'inline-block';document.getElementById('cat-editor').style.display='block';document.getElementById('cat-editor').scrollIntoView({behavior:'smooth',block:'nearest'});}
-function renderCESubs(subs){const el=document.getElementById('ce-subs');el.innerHTML=subs.map((s,i)=>`<div style="display:flex;align-items:center;gap:6px;"><div style="flex:1;padding:7px 12px;background:var(--bg2);border-radius:10px;font-size:13px;">${s}</div><button class="icon-btn" onclick="removeCESub(${i})">✕</button></div>`).join('');el._subs=subs;}
+function renderCESubs(subs){const el=document.getElementById('ce-subs');el.innerHTML=subs.map((s,i)=>`<div style="display:flex;align-items:center;gap:6px;"><div style="flex:1;padding:7px 12px;background:var(--bg2);border-radius:10px;font-size:13px;">${_esc(s)}</div><button class="icon-btn" onclick="removeCESub(${i})">✕</button></div>`).join('');el._subs=subs;}
 function removeCESub(i){const el=document.getElementById('ce-subs');const subs=[...el._subs];subs.splice(i,1);renderCESubs(subs);}
 function addCatSub(){const inp=document.getElementById('ce-new-sub');const val=inp.value.trim();if(!val)return;const el=document.getElementById('ce-subs');const subs=[...(el._subs||[]),val];renderCESubs(subs);inp.value='';}
 function setCEIcon(e){const el=document.getElementById('ce-icon');if(el)el.value=e;}
@@ -1614,9 +1618,9 @@ function showFactorHistory(cat, detail){
     .filter(e=>new Date(e.timestamp)>=cutoff&&(e.impactFactors||[]).some(f=>f.category===cat&&f.detail===detail))
     .sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp));
   const rangeLabel=reflectDays===7?'1週':reflectDays===14?'2週':reflectDays===30?'1月':'半年';
-  document.getElementById('factor-overlay-title').innerHTML=`<span style="background:${col}15;color:${col};padding:3px 10px;border-radius:100px;font-size:13px;">${catInfo?.icon||''} ${detail}</span><span style="font-size:11px;color:var(--faint);margin-left:8px;">近${rangeLabel}</span>`;
+  document.getElementById('factor-overlay-title').innerHTML=`<span style="background:${col}15;color:${col};padding:3px 10px;border-radius:100px;font-size:13px;">${_esc(catInfo?.icon||'')} ${_esc(detail)}</span><span style="font-size:11px;color:var(--faint);margin-left:8px;">近${rangeLabel}</span>`;
   document.getElementById('factor-overlay-body').innerHTML=entries.length
-    ?entries.map(e=>{const mi=moodInfo(e.moodScore);const d=new Date(e.timestamp).toLocaleDateString('zh-TW',{month:'numeric',day:'numeric',weekday:'short'});const tags=(e.emotionTags||[]).map(t=>`<span style="font-size:11px;padding:2px 7px;border-radius:100px;background:var(--pr-bg);color:var(--pr-d);">${t}</span>`).join('');return`<div style="padding:12px;border-radius:12px;background:var(--bg2);margin-bottom:8px;"><div style="display:flex;align-items:center;gap:8px;margin-bottom:${tags||e.notes?'6':'0'}px;"><span style="font-size:20px;">${mi.emoji}</span><span style="font-size:17px;font-weight:700;color:${mi.hex};">${e.moodScore}/10</span><span style="font-size:12px;color:var(--muted);">${d}</span></div>${tags?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">${tags}</div>`:''}${e.notes?`<div style="font-size:13px;line-height:1.6;color:var(--muted);white-space:pre-wrap;">${e.notes.slice(0,300)}</div>`:''}</div>`;}).join('')
+    ?entries.map(e=>{const mi=moodInfo(e.moodScore);const d=new Date(e.timestamp).toLocaleDateString('zh-TW',{month:'numeric',day:'numeric',weekday:'short'});const tags=(e.emotionTags||[]).map(t=>`<span style="font-size:11px;padding:2px 7px;border-radius:100px;background:var(--pr-bg);color:var(--pr-d);">${_esc(t)}</span>`).join('');return`<div style="padding:12px;border-radius:12px;background:var(--bg2);margin-bottom:8px;"><div style="display:flex;align-items:center;gap:8px;margin-bottom:${tags||e.notes?'6':'0'}px;"><span style="font-size:20px;">${mi.emoji}</span><span style="font-size:17px;font-weight:700;color:${mi.hex};">${e.moodScore}/10</span><span style="font-size:12px;color:var(--muted);">${d}</span></div>${tags?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">${tags}</div>`:''}${e.notes?`<div style="font-size:13px;line-height:1.6;color:var(--muted);white-space:pre-wrap;">${_esc(e.notes.slice(0,300))}</div>`:''}</div>`;}).join('')
     :'<div style="text-align:center;padding:24px 0;color:var(--muted);font-size:13px;">此時間範圍內無此因子記錄</div>';
   document.getElementById('factor-overlay').style.display='block';
 }
@@ -1679,12 +1683,12 @@ function renderFactorBars(days){
     else                 { sentiment='中性'; sColor='#8A7848'; }
 
     const iconHtml = item.customImg
-      ? `<img src="${item.customImg}" style="width:16px;height:16px;border-radius:3px;object-fit:cover;vertical-align:middle;"/>`
-      : item.icon;
+      ? `<img src="${_esc(item.customImg)}" style="width:16px;height:16px;border-radius:3px;object-fit:cover;vertical-align:middle;"/>`
+      : _esc(item.icon);
 
     return `<div style="margin-bottom:16px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
-        <span style="font-size:13px;font-weight:500;">${iconHtml} ${item.label}</span>
+        <span style="font-size:13px;font-weight:500;">${iconHtml} ${_esc(item.label)}</span>
         <div style="display:flex;align-items:center;gap:8px;">
           <span style="font-size:11px;color:var(--faint);">${item.count}次</span>
           <span style="font-size:11px;font-weight:600;color:${sColor};">${sentiment}</span>
@@ -1767,8 +1771,8 @@ function openCustomEmojiPicker(targetInputId){
 }
 // render custom img icon in category chips
 function renderCatIcon(cat){
-  if(cat.customImg) return `<img src="${cat.customImg}" style="width:18px;height:18px;object-fit:cover;border-radius:3px;vertical-align:middle;"/>`;
-  return cat.icon||'⭐';
+  if(cat.customImg) return `<img src="${_esc(cat.customImg)}" style="width:18px;height:18px;object-fit:cover;border-radius:3px;vertical-align:middle;"/>`;
+  return _esc(cat.icon||'⭐');
 }
 
 // ── INIT ──
