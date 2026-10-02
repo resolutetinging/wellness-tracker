@@ -541,6 +541,10 @@ const KEY='wellness_v5';
 // 雙層情境（先做JS字串跳脫防止提早結束'...'，再做HTML屬性跳脫防止跳出"..."屬性本身）
 function _esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 function _escJsAttr(s){return String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+// _safeSrc()：img/連結的src/href白名單，只放行 http(s):// 與 data:image/(png|jpeg|jpg|gif|webp);base64,，其餘（含javascript:等）一律回傳空字串
+function _safeSrc(u){if(u==null)return'';const s=String(u).trim();if(/^https?:\/\//i.test(s))return _esc(s);if(/^data:image\/(png|jpeg|jpg|gif|webp);base64,/i.test(s))return _esc(s);return'';}
+// _safeId()：驗證id/key類欄位格式（匯入清洗用），只允許英數字/底線/連字號，長度1-64
+function _safeId(s){return typeof s==='string'&&/^[A-Za-z0-9_-]{1,64}$/.test(s);}
 function toggleCard(id){
   const h=document.querySelector('[data-card="'+id+'"]');
   const b=document.getElementById(id+'-bd');
@@ -780,7 +784,7 @@ function openDayModal(y,m,d){
   const es=DB.entries.filter(e=>{const dt=new Date(e.timestamp);return dt.getFullYear()===y&&dt.getMonth()===m-1&&dt.getDate()===d;}).sort((a,b)=>new Date(a.timestamp)-new Date(b.timestamp));
   document.getElementById('modal-title').textContent=y+'年'+m+'月'+d+'日';
   const cats=getCats();
-  let body=es.length?es.map(e=>{const mi=moodInfo(e.moodScore);const factors=(e.impactFactors||[]).map(f=>{const col=cats[f.category]?.color||'#888';return`<span style="font-size:11px;padding:2px 8px;border-radius:100px;background:${col}18;color:${col};">${_esc(cats[f.category]?.icon||'')} ${_esc(f.detail)}</span>`;}).join('');const tags=(e.emotionTags||[]).map(t=>`<span style="font-size:11px;padding:2px 8px;border-radius:100px;background:var(--pr-bg);color:var(--pr-d);">${_esc(t)}</span>`).join('');const catPills=(e.categories||[]).map(c=>`<span style="font-size:11px;padding:2px 8px;border-radius:100px;background:rgba(88,128,104,.12);color:#588068;border:1px solid rgba(88,128,104,.28);">🗂 ${_esc(c)}</span>`).join('');return`<div style="padding:14px;border-radius:14px;background:var(--bg2);margin-bottom:10px;"><div class="sb mb8"><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:24px;">${mi.emoji}</span><span style="font-size:20px;font-weight:700;color:${mi.hex};">${e.moodScore}/10</span><span style="font-size:12px;color:var(--muted);">${new Date(e.timestamp).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'})}</span></div><div style="display:flex;gap:6px;"><button onclick="editEntry('${e.id}')" style="font-size:13px;padding:4px 10px;border-radius:8px;border:1px solid var(--border);background:transparent;cursor:pointer;color:var(--muted);font-family:inherit;">編輯</button><button class="e-del" onclick="delEntryModal('${e.id}')">🗑</button></div></div>${catPills?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">${catPills}</div>`:''}${tags?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">${tags}</div>`:''}${factors?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">${factors}</div>`:''}${e.notes?`<div style="font-size:13px;line-height:1.6;padding-top:6px;border-top:1px solid var(--border);white-space:pre-wrap;word-break:break-word;">${_esc(e.notes)}</div>`:''}</div>`;}).join(''):'<div style="text-align:center;padding:20px;color:var(--muted);font-size:14px;">這天沒有記錄</div>';
+  let body=es.length?es.map(e=>{const mi=moodInfo(e.moodScore);const factors=(e.impactFactors||[]).map(f=>{const col=cats[f.category]?.color||'#888';return`<span style="font-size:11px;padding:2px 8px;border-radius:100px;background:${col}18;color:${col};">${_esc(cats[f.category]?.icon||'')} ${_esc(f.detail)}</span>`;}).join('');const tags=(e.emotionTags||[]).map(t=>`<span style="font-size:11px;padding:2px 8px;border-radius:100px;background:var(--pr-bg);color:var(--pr-d);">${_esc(t)}</span>`).join('');const catPills=(e.categories||[]).map(c=>`<span style="font-size:11px;padding:2px 8px;border-radius:100px;background:rgba(88,128,104,.12);color:#588068;border:1px solid rgba(88,128,104,.28);">🗂 ${_esc(c)}</span>`).join('');return`<div style="padding:14px;border-radius:14px;background:var(--bg2);margin-bottom:10px;"><div class="sb mb8"><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:24px;">${mi.emoji}</span><span style="font-size:20px;font-weight:700;color:${mi.hex};">${e.moodScore}/10</span><span style="font-size:12px;color:var(--muted);">${new Date(e.timestamp).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'})}</span></div><div style="display:flex;gap:6px;"><button onclick="editEntry('${_escJsAttr(e.id)}')" style="font-size:13px;padding:4px 10px;border-radius:8px;border:1px solid var(--border);background:transparent;cursor:pointer;color:var(--muted);font-family:inherit;">編輯</button><button class="e-del" onclick="delEntryModal('${_escJsAttr(e.id)}')">🗑</button></div></div>${catPills?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">${catPills}</div>`:''}${tags?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">${tags}</div>`:''}${factors?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">${factors}</div>`:''}${e.notes?`<div style="font-size:13px;line-height:1.6;padding-top:6px;border-top:1px solid var(--border);white-space:pre-wrap;word-break:break-word;">${_esc(e.notes)}</div>`:''}</div>`;}).join(''):'<div style="text-align:center;padding:20px;color:var(--muted);font-size:14px;">這天沒有記錄</div>';
   body+=`<button class="btn btn-ghost" onclick="closeModal();openTrackerWithDate(${y},${m},${d});" style="margin-top:8px;">＋ 補記這天</button>`;
   document.getElementById('modal-body').innerHTML=body;
   document.getElementById('modal-bg').style.display='flex';
@@ -803,7 +807,7 @@ function editEntry(id){
   }).join('');
   const factorsHtml=Object.entries(cats).map(([k,cat])=>{
     const sel=editFactors.some(f=>f.category===k);
-    return`<button type="button" onclick="toggleEditCat(this,'${k}')" data-cat="${k}" style="display:inline-block;padding:5px 12px;border-radius:100px;font-size:12px;cursor:pointer;border:1.5px solid ${sel?cat.color:'var(--border)'};background:${sel?cat.color:'transparent'};color:${sel?'#fff':'var(--ink2)'};margin:2px;font-family:inherit;white-space:nowrap;">${_esc(cat.icon)} ${_esc(cat.label)}</button>`;
+    return`<button type="button" onclick="toggleEditCat(this,'${_escJsAttr(k)}')" data-cat="${_esc(k)}" style="display:inline-block;padding:5px 12px;border-radius:100px;font-size:12px;cursor:pointer;border:1.5px solid ${sel?cat.color:'var(--border)'};background:${sel?cat.color:'transparent'};color:${sel?'#fff':'var(--ink2)'};margin:2px;font-family:inherit;white-space:nowrap;">${_esc(cat.icon)} ${_esc(cat.label)}</button>`;
   }).join('');
   const eDateStr=new Date(e.timestamp).toISOString().split('T')[0];
   document.getElementById('modal-body').innerHTML=`
@@ -840,7 +844,7 @@ function editEntry(id){
       </div>
       <div style="display:flex;gap:8px;">
         <button onclick="backToDay()" style="flex:1;padding:12px;border-radius:12px;border:1.5px solid var(--border);background:transparent;font-family:inherit;font-size:14px;cursor:pointer;color:var(--muted);">取消</button>
-        <button onclick="saveEditEntry('${id}')" style="flex:2;padding:12px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--pr),var(--pr-d));color:#fff;font-family:inherit;font-size:14px;font-weight:500;cursor:pointer;">儲存</button>
+        <button onclick="saveEditEntry('${_escJsAttr(id)}')" style="flex:2;padding:12px;border-radius:12px;border:none;background:linear-gradient(135deg,var(--pr),var(--pr-d));color:#fff;font-family:inherit;font-size:14px;font-weight:500;cursor:pointer;">儲存</button>
       </div>
     </div>`;
   renderEditSubAll();
@@ -877,15 +881,15 @@ function renderEditSubSection(cat,cats){
   const lbl=`<div style="font-size:11px;color:var(--faint);margin-bottom:6px;">${_esc(catDef.icon||'')} ${_esc(catDef.label)}</div>`;
   if(cat==='friends'){
     const people=DB.profile?.people||[];
-    const pHtml=people.length?people.map(p=>{const sel=editFactors.some(f=>f.category==='friends'&&f.detail===p.name&&!f.isFree);return`<button class="chip${sel?' sel':''}" onclick="toggleEditPerson('${p.id}','${_escJsAttr(p.name)}')" style="margin:2px;">👤 ${_esc(p.name)}</button>`;}).join(''):`<span style="font-size:12px;color:var(--faint);">可在 Settings 新增人物</span>`;
+    const pHtml=people.length?people.map(p=>{const sel=editFactors.some(f=>f.category==='friends'&&f.detail===p.name&&!f.isFree);return`<button class="chip${sel?' sel':''}" onclick="toggleEditPerson('${_escJsAttr(p.id)}','${_escJsAttr(p.name)}')" style="margin:2px;">👤 ${_esc(p.name)}</button>`;}).join(''):`<span style="font-size:12px;color:var(--faint);">可在 Settings 新增人物</span>`;
     const curFree=editFactors.find(f=>f.category==='friends'&&f.isFree);
     return`<div style="${ss}">${lbl}<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">${pHtml}</div><input id="edit-friend-free" placeholder="或自由填寫…" value="${_esc(curFree?curFree.detail:'')}" oninput="updateEditFriendFree(this.value)" style="width:100%;box-sizing:border-box;background:var(--bg);border:1.5px solid var(--border);border-radius:8px;padding:6px 10px;font-size:13px;color:var(--ink);font-family:inherit;"/></div>`;
   }else if(catDef.sub&&catDef.sub.length){
-    const subHtml=catDef.sub.map(s=>{const sel=editFactors.some(f=>f.category===cat&&f.detail===s);return`<button class="chip${sel?' sel':''}" onclick="toggleEditSubChip('${cat}','${_escJsAttr(s)}')" style="margin:2px;">${_esc(s)}</button>`;}).join('');
+    const subHtml=catDef.sub.map(s=>{const sel=editFactors.some(f=>f.category===cat&&f.detail===s);return`<button class="chip${sel?' sel':''}" onclick="toggleEditSubChip('${_escJsAttr(cat)}','${_escJsAttr(s)}')" style="margin:2px;">${_esc(s)}</button>`;}).join('');
     return`<div style="${ss}">${lbl}<div style="display:flex;flex-wrap:wrap;gap:4px;">${subHtml}</div></div>`;
   }else{
-    const cur=editFactors.find(f=>f.category===cat);const catE=cat.replace(/'/g,"\\'");
-    return`<div style="${ss}">${lbl}<input id="edit-custom-${cat}" placeholder="描述發生了什麼…" value="${_esc(cur?cur.detail:'')}" oninput="updateEditCustom('${catE}',this.value)" style="width:100%;box-sizing:border-box;background:var(--bg);border:1.5px solid var(--border);border-radius:8px;padding:6px 10px;font-size:13px;color:var(--ink);font-family:inherit;"/></div>`;
+    const cur=editFactors.find(f=>f.category===cat);const catE=_escJsAttr(cat);
+    return`<div style="${ss}">${lbl}<input id="edit-custom-${_esc(cat)}" placeholder="描述發生了什麼…" value="${_esc(cur?cur.detail:'')}" oninput="updateEditCustom('${catE}',this.value)" style="width:100%;box-sizing:border-box;background:var(--bg);border:1.5px solid var(--border);border-radius:8px;padding:6px 10px;font-size:13px;color:var(--ink);font-family:inherit;"/></div>`;
   }
 }
 function toggleEditPerson(pid,name){
@@ -977,7 +981,7 @@ function toggleEmo(t){const i=selEmotions.indexOf(t);i>-1?selEmotions.splice(i,1
 
 function renderCatRow(){
   const all=getCats();
-  let h=Object.entries(all).map(([k,cat])=>`<button class="chip" id="cb-${k}" style="white-space:nowrap;" onclick="toggleCat('${k}')">${_esc(cat.icon)} ${_esc(cat.label)}</button>`).join('');
+  let h=Object.entries(all).map(([k,cat])=>`<button class="chip" id="cb-${_esc(k)}" style="white-space:nowrap;" onclick="toggleCat('${_escJsAttr(k)}')">${_esc(cat.icon)} ${_esc(cat.label)}</button>`).join('');
   h+=`<button class="chip" style="white-space:nowrap;border-style:dashed;" onclick="toggleCatForm()">＋ 新增類別</button>`;
   document.getElementById('cat-row').innerHTML=h;
   if(activeCat)styleBtn(activeCat,true);
@@ -992,14 +996,14 @@ function renderSub(){
   if(activeCat==='friends'){
     const people=DB.profile.people||[];
     lbl.textContent='選擇相關人物，或描述事件：';
-    let h=people.length?`<div class="chip-wrap mb12">${people.map(p=>{const sel=selFactors.some(f=>f.category==='friends'&&f.detail===p.name&&!f.isFree);return`<button class="chip${sel?' sel':''}" id="pchip-${p.id}" onclick="togglePerson('${p.id}','${_escJsAttr(p.name)}')">👤 ${_esc(p.name)}</button>`;}).join('')}</div>`:'<div style="font-size:12px;color:var(--faint);margin-bottom:10px;">可在 Settings 新增人物</div>';
+    let h=people.length?`<div class="chip-wrap mb12">${people.map(p=>{const sel=selFactors.some(f=>f.category==='friends'&&f.detail===p.name&&!f.isFree);return`<button class="chip${sel?' sel':''}" id="pchip-${_esc(p.id)}" onclick="togglePerson('${_escJsAttr(p.id)}','${_escJsAttr(p.name)}')">👤 ${_esc(p.name)}</button>`;}).join('')}</div>`:'<div style="font-size:12px;color:var(--faint);margin-bottom:10px;">可在 Settings 新增人物</div>';
     const curF=selFactors.find(f=>f.category==='friends'&&f.isFree);
     h+=`<label class="field-label">自由填寫（選填）</label><input id="friend-free" placeholder="例：今天和朋友聊天…" value="${_esc(curF?curF.detail:'')}" oninput="updateFriendFree(this.value)"/>`;
     content.innerHTML=h;
   } else {
     const cat=all[activeCat];const isCustom=!!DB.customCats.find(c=>c.id===activeCat);
     if(isCustom||!cat?.sub?.length){lbl.textContent='描述發生了什麼：';const cur=selFactors.find(f=>f.category===activeCat);content.innerHTML=`<input id="custom-detail" placeholder="簡單描述…" value="${_esc(cur?cur.detail:'')}" oninput="updateCustomDetail(this.value)"/>`;}
-    else{lbl.textContent='選擇細項：';content.innerHTML=`<div class="chip-wrap">${cat.sub.map(s=>{const sel=selFactors.some(f=>f.category===activeCat&&f.detail===s);const eid='sc-'+activeCat+'-'+s;return`<button class="chip${sel?' sel':''}" id="${_esc(eid)}" onclick="toggleSub('${activeCat}','${_escJsAttr(s)}')">${_esc(s)}</button>`;}).join('')}</div>`;}
+    else{lbl.textContent='選擇細項：';content.innerHTML=`<div class="chip-wrap">${cat.sub.map(s=>{const sel=selFactors.some(f=>f.category===activeCat&&f.detail===s);const eid='sc-'+activeCat+'-'+s;return`<button class="chip${sel?' sel':''}" id="${_esc(eid)}" onclick="toggleSub('${_escJsAttr(activeCat)}','${_escJsAttr(s)}')">${_esc(s)}</button>`;}).join('')}</div>`;}
   }
   renderSelF();
 }
@@ -1090,7 +1094,7 @@ function renderInsights(){
   const allLow=l3.length===3&&l3.every(e=>e.moodScore<=3);
   const best=all.reduce((a,b)=>a.moodScore>b.moodScore?a:b,all[0]);const worst=all.reduce((a,b)=>a.moodScore<b.moodScore?a:b,all[0]);
   const freq=computeFreq(all);const cats=getCats();
-  const impH=Object.entries(freq).sort(([,a],[,b])=>b.count-a.count).map(([cat,val])=>{const pct=Math.min(+(val.count/all.length*100).toFixed(0),100);const uniqueDetails=[...new Set(all.flatMap(e=>(e.impactFactors||[]).filter(f=>f.category===cat&&f.detail).map(f=>f.detail)))];const subs=uniqueDetails.map(d=>{const dEsc=_escJsAttr(d);return`<span style="font-size:11px;color:var(--muted);background:var(--bg3);border-radius:100px;padding:2px 10px;cursor:pointer;" onclick="showFactorHistory('${cat}','${dEsc}')">${_esc(d)}</span>`;}).join('');return`<div style="margin-bottom:13px;"><div class="sb mb8"><span style="font-size:13px;">${_esc(cats[cat]?.icon||'')} ${_esc(val.label)}</span><span style="font-size:12px;color:var(--muted);">${val.count}次</span></div><div class="bar-bg"><div class="bar-fill" style="width:${pct}%;background:${val.color};"></div></div>${subs?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;">${subs}</div>`:''}</div>`;}).join('');
+  const impH=Object.entries(freq).sort(([,a],[,b])=>b.count-a.count).map(([cat,val])=>{const pct=Math.min(+(val.count/all.length*100).toFixed(0),100);const uniqueDetails=[...new Set(all.flatMap(e=>(e.impactFactors||[]).filter(f=>f.category===cat&&f.detail).map(f=>f.detail)))];const catEsc=_escJsAttr(cat);const subs=uniqueDetails.map(d=>{const dEsc=_escJsAttr(d);return`<span style="font-size:11px;color:var(--muted);background:var(--bg3);border-radius:100px;padding:2px 10px;cursor:pointer;" onclick="showFactorHistory('${catEsc}','${dEsc}')">${_esc(d)}</span>`;}).join('');return`<div style="margin-bottom:13px;"><div class="sb mb8"><span style="font-size:13px;">${_esc(cats[cat]?.icon||'')} ${_esc(val.label)}</span><span style="font-size:12px;color:var(--muted);">${val.count}次</span></div><div class="bar-bg"><div class="bar-fill" style="width:${pct}%;background:${val.color};"></div></div>${subs?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;">${subs}</div>`:''}</div>`;}).join('');
   const sentH=buildFactorSentiment(all);
   body.innerHTML=`<div class="glass card-p mb12"><div class="sec-title">🧭 決策狀態</div>${[['近3天均分',l3avg+'分'],['建議決策',allLow?'⚠️ 暫緩':'✅ 可行'],['人類圖策略',DB.profile.hdStrategy||'未設定'],['內在權威',DB.profile.hdAuthority||'未設定']].map(([l,v])=>`<div class="sb" style="padding:9px 0;border-bottom:1px solid var(--border);"><span style="font-size:13px;color:var(--muted);">${l}</span><span style="font-size:13px;font-weight:500;">${v}</span></div>`).join('')}</div>
   <div class="two-col"><div class="glass" style="padding:15px;"><div style="font-size:11px;color:var(--muted);margin-bottom:6px;">🏆 Best Day</div><div style="font-size:26px;">${moodInfo(best.moodScore).emoji}</div><div style="font-size:19px;font-weight:700;color:#588068;">${best.moodScore}/10</div><div style="font-size:11px;color:var(--muted);margin-top:2px;">${new Date(best.timestamp).toLocaleDateString('zh-TW',{month:'numeric',day:'numeric'})}</div><div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:6px;">${(best.impactFactors||[]).map(f=>{const col=cats[f.category]?.color||'#888';return`<span style="font-size:10px;padding:2px 7px;border-radius:100px;background:${col}18;color:${col};">${_esc(f.detail)}</span>`;}).join('')}</div></div><div class="glass" style="padding:15px;"><div style="font-size:11px;color:var(--muted);margin-bottom:6px;">💤 Lowest Day</div><div style="font-size:26px;">${moodInfo(worst.moodScore).emoji}</div><div style="font-size:19px;font-weight:700;color:#A07068;">${worst.moodScore}/10</div><div style="font-size:11px;color:var(--muted);margin-top:2px;">${new Date(worst.timestamp).toLocaleDateString('zh-TW',{month:'numeric',day:'numeric'})}</div><div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:6px;">${(worst.impactFactors||[]).map(f=>{const col=cats[f.category]?.color||'#888';return`<span style="font-size:10px;padding:2px 7px;border-radius:100px;background:${col}18;color:${col};">${_esc(f.detail)}</span>`;}).join('')}</div></div></div>
@@ -1169,9 +1173,9 @@ function buildFactorSentiment(entries){
     catItems.forEach((v,i)=>{
       const avg=(v.sum/v.count).toFixed(1);const pH=v.high/v.count,pL=v.low/v.count;
       let s,sc,si;if(pH>=.5){s='助力';sc='#588068';si='↑';}else if(pL>=.5){s='負向';sc='#A07068';si='↓';}else{s='中性';sc='#8A7848';si='—';}
-      const wL=Math.round(pL*100),wH=Math.round(pH*100),wM=100-wL-wH;const dEsc=_escJsAttr(v.detail);
+      const wL=Math.round(pL*100),wH=Math.round(pH*100),wM=100-wL-wH;const dEsc=_escJsAttr(v.detail);const catEsc2=_escJsAttr(cat);
       const border=i<catItems.length-1?'border-bottom:1px solid var(--border);':'';
-      html+=`<div style="padding-bottom:10px;margin-bottom:10px;${border}cursor:pointer;" onclick="showFactorHistory('${cat}','${dEsc}')"><div class="sb mb8"><span style="font-size:13px;font-weight:500;">${_esc(v.detail)}</span><span style="font-size:12px;font-weight:600;color:${sc};">${si} ${s}</span></div><div style="display:flex;height:5px;border-radius:3px;overflow:hidden;gap:1px;margin-bottom:5px;"><div style="width:${wL}%;background:#A07068;"></div><div style="width:${wM}%;background:var(--bg3);"></div><div style="width:${wH}%;background:#588068;"></div></div><div style="display:flex;justify-content:space-between;font-size:10px;color:var(--faint);"><span>負向 ${v.low}</span><span>均分 ${avg}</span><span>助力 ${v.high}</span></div></div>`;
+      html+=`<div style="padding-bottom:10px;margin-bottom:10px;${border}cursor:pointer;" onclick="showFactorHistory('${catEsc2}','${dEsc}')"><div class="sb mb8"><span style="font-size:13px;font-weight:500;">${_esc(v.detail)}</span><span style="font-size:12px;font-weight:600;color:${sc};">${si} ${s}</span></div><div style="display:flex;height:5px;border-radius:3px;overflow:hidden;gap:1px;margin-bottom:5px;"><div style="width:${wL}%;background:#A07068;"></div><div style="width:${wM}%;background:var(--bg3);"></div><div style="width:${wH}%;background:#588068;"></div></div><div style="display:flex;justify-content:space-between;font-size:10px;color:var(--faint);"><span>負向 ${v.low}</span><span>均分 ${avg}</span><span>助力 ${v.high}</span></div></div>`;
     });
     html+='</div></div>';
   });
@@ -1321,13 +1325,13 @@ function loadProfile(){
 function _personRowHtml(pr){
   const safe=_escJsAttr(pr.name);
   const cats=DB.profile.peopleCats||[];
-  const catSel=cats.length?`<select style="font-size:11px;padding:3px 6px;border-radius:6px;border:1px solid var(--border);background:var(--bg2);color:var(--muted);margin:0;max-width:76px;cursor:pointer;" onchange="setPersonCat('${pr.id}',this.value)"><option value=""${!pr.catId?' selected':''}>未分類</option>${cats.map(c=>`<option value="${c.id}"${pr.catId===c.id?' selected':''}>${_esc(c.name)}</option>`).join('')}</select>`:'';
-  return`<div class="person-row" id="pr-${pr.id}">
+  const catSel=cats.length?`<select style="font-size:11px;padding:3px 6px;border-radius:6px;border:1px solid var(--border);background:var(--bg2);color:var(--muted);margin:0;max-width:76px;cursor:pointer;" onchange="setPersonCat('${_escJsAttr(pr.id)}',this.value)"><option value=""${!pr.catId?' selected':''}>未分類</option>${cats.map(c=>`<option value="${_esc(c.id)}"${pr.catId===c.id?' selected':''}>${_esc(c.name)}</option>`).join('')}</select>`:'';
+  return`<div class="person-row" id="pr-${_esc(pr.id)}">
     <span style="font-size:15px;">👤</span>
     <span style="flex:1;font-size:14px;">${_esc(pr.name)}</span>
     ${catSel}
-    <button class="icon-btn" style="font-size:11px;padding:3px 8px;border-radius:6px;width:auto;color:var(--muted);border:1px solid var(--border);background:var(--bg2);" onclick="startEditPerson('${pr.id}','${safe}')">改名</button>
-    <button class="icon-btn" onclick="removePerson('${pr.id}')">✕</button>
+    <button class="icon-btn" style="font-size:11px;padding:3px 8px;border-radius:6px;width:auto;color:var(--muted);border:1px solid var(--border);background:var(--bg2);" onclick="startEditPerson('${_escJsAttr(pr.id)}','${safe}')">改名</button>
+    <button class="icon-btn" onclick="removePerson('${_escJsAttr(pr.id)}')">✕</button>
   </div>`;
 }
 function renderPeople(){
@@ -1341,18 +1345,18 @@ function renderPeople(){
     const safeCat=_escJsAttr(cat.name);
     const group=people.filter(pr=>pr.catId===cat.id);
     const isC=!!_pcatCollapsed[cat.id];
-    html+=`<div class="pcat-group" id="pcg-${cat.id}">
-      <div class="pcat-hd${isC?' coll':''}" onclick="togglePeopleCat('${cat.id}')">
+    html+=`<div class="pcat-group" id="pcg-${_esc(cat.id)}">
+      <div class="pcat-hd${isC?' coll':''}" onclick="togglePeopleCat('${_escJsAttr(cat.id)}')">
         <span class="pcat-chev">▾</span>
         <span class="pcat-name">${_esc(cat.name)}</span>
         <span class="pcat-count">${group.length} 人</span>
-        <button class="icon-btn" style="font-size:11px;padding:3px 8px;border-radius:6px;width:auto;color:var(--muted);border:1px solid var(--border);background:var(--bg2);" onclick="startEditCat('${cat.id}','${safeCat}');event.stopPropagation()">改名</button>
-        <button class="icon-btn" onclick="deletePeopleCat('${cat.id}');event.stopPropagation()">✕</button>
+        <button class="icon-btn" style="font-size:11px;padding:3px 8px;border-radius:6px;width:auto;color:var(--muted);border:1px solid var(--border);background:var(--bg2);" onclick="startEditCat('${_escJsAttr(cat.id)}','${safeCat}');event.stopPropagation()">改名</button>
+        <button class="icon-btn" onclick="deletePeopleCat('${_escJsAttr(cat.id)}');event.stopPropagation()">✕</button>
       </div>
-      <div id="pcb-${cat.id}" style="display:${isC?'none':'block'}">
+      <div id="pcb-${_esc(cat.id)}" style="display:${isC?'none':'block'}">
         ${group.map(_personRowHtml).join('')}
-        <div class="person-row pcat-add-row" id="par-${cat.id}">
-          <button class="btn btn-ghost btn-sm" style="width:100%;font-size:12px;padding:6px;" onclick="showAddPersonInCat('${cat.id}')">＋ 新增人物</button>
+        <div class="person-row pcat-add-row" id="par-${_esc(cat.id)}">
+          <button class="btn btn-ghost btn-sm" style="width:100%;font-size:12px;padding:6px;" onclick="showAddPersonInCat('${_escJsAttr(cat.id)}')">＋ 新增人物</button>
         </div>
       </div>
     </div>`;
@@ -1407,9 +1411,9 @@ function addPeopleCat(){
 function startEditCat(id,name){
   const hd=document.querySelector('#pcg-'+id+' .pcat-hd');
   if(!hd)return;
-  hd.outerHTML=`<div class="pcat-hd" id="pchd-edit-${id}" style="gap:6px;" onclick="">
-    <input id="eci-${id}" value="${_esc(name)}" style="flex:1;min-width:0;margin:0;padding:5px 8px;font-size:13px;border-radius:8px;border:1.5px solid var(--pr);background:var(--bg);color:var(--ink);font-family:inherit;" onkeydown="if(event.key==='Enter')saveEditCat('${id}');if(event.key==='Escape')renderPeople()"/>
-    <button class="btn btn-pr btn-sm" style="padding:5px 10px;font-size:12px;" onclick="saveEditCat('${id}')">確認</button>
+  hd.outerHTML=`<div class="pcat-hd" id="pchd-edit-${_esc(id)}" style="gap:6px;" onclick="">
+    <input id="eci-${_esc(id)}" value="${_esc(name)}" style="flex:1;min-width:0;margin:0;padding:5px 8px;font-size:13px;border-radius:8px;border:1.5px solid var(--pr);background:var(--bg);color:var(--ink);font-family:inherit;" onkeydown="if(event.key==='Enter')saveEditCat('${_escJsAttr(id)}');if(event.key==='Escape')renderPeople()"/>
+    <button class="btn btn-pr btn-sm" style="padding:5px 10px;font-size:12px;" onclick="saveEditCat('${_escJsAttr(id)}')">確認</button>
     <button class="btn btn-ghost btn-sm" style="padding:5px 8px;font-size:12px;" onclick="renderPeople()">取消</button>
   </div>`;
   setTimeout(()=>{const i=document.getElementById('eci-'+id);if(i){i.focus();i.select();}},30);
@@ -1433,8 +1437,8 @@ function deletePeopleCat(id){
 function showAddPersonInCat(catId){
   const row=document.getElementById('par-'+catId);
   if(!row)return;
-  const safeCat=catId.replace(/'/g,"\\'");
-  row.innerHTML=`<input id="npi-${catId}" placeholder="姓名 / 稱呼" style="flex:1;min-width:0;margin:0;padding:5px 8px;font-size:13px;border-radius:8px;border:1.5px solid var(--pr);background:var(--bg);color:var(--ink);font-family:inherit;" onkeydown="if(event.key==='Enter')addPersonInCat('${safeCat}');if(event.key==='Escape')renderPeople()"/>
+  const safeCat=_escJsAttr(catId);
+  row.innerHTML=`<input id="npi-${_esc(catId)}" placeholder="姓名 / 稱呼" style="flex:1;min-width:0;margin:0;padding:5px 8px;font-size:13px;border-radius:8px;border:1.5px solid var(--pr);background:var(--bg);color:var(--ink);font-family:inherit;" onkeydown="if(event.key==='Enter')addPersonInCat('${safeCat}');if(event.key==='Escape')renderPeople()"/>
     <button class="btn btn-pr btn-sm" style="padding:5px 10px;font-size:12px;" onclick="addPersonInCat('${safeCat}')">新增</button>
     <button class="btn btn-ghost btn-sm" style="padding:5px 8px;font-size:12px;" onclick="renderPeople()">✕</button>`;
   setTimeout(()=>{const i=document.getElementById('npi-'+catId);if(i)i.focus();},30);
@@ -1456,8 +1460,8 @@ function startEditPerson(id,name){
   if(!row)return;
   row.innerHTML=`
     <span style="font-size:15px;">👤</span>
-    <input id="ep-${id}" value="${_esc(name)}" style="flex:1;min-width:0;margin:0 6px 0 0;padding:5px 8px;font-size:13px;border-radius:8px;border:1.5px solid var(--pr);background:var(--bg);color:var(--ink);font-family:inherit;" onkeydown="if(event.key==='Enter')saveEditPerson('${id}');if(event.key==='Escape')renderPeople()"/>
-    <button class="btn btn-pr btn-sm" style="padding:5px 10px;font-size:12px;" onclick="saveEditPerson('${id}')">確認</button>
+    <input id="ep-${_esc(id)}" value="${_esc(name)}" style="flex:1;min-width:0;margin:0 6px 0 0;padding:5px 8px;font-size:13px;border-radius:8px;border:1.5px solid var(--pr);background:var(--bg);color:var(--ink);font-family:inherit;" onkeydown="if(event.key==='Enter')saveEditPerson('${_escJsAttr(id)}');if(event.key==='Escape')renderPeople()"/>
+    <button class="btn btn-pr btn-sm" style="padding:5px 10px;font-size:12px;" onclick="saveEditPerson('${_escJsAttr(id)}')">確認</button>
     <button class="btn btn-ghost btn-sm" style="padding:5px 8px;font-size:12px;" onclick="renderPeople()">取消</button>`;
   setTimeout(()=>{const inp=document.getElementById('ep-'+id);if(inp){inp.focus();inp.select();}},30);
 }
@@ -1559,20 +1563,64 @@ function importData(input){
         showStatus('❌ 格式不正確：找不到 entries 資料', false); return;
       }
       const before = DB.entries.length;
+      // 第二輪XSS修補：匯入清洗 — 所有id/key類欄位必須符合安全格式（英數字/底線/連字號，1-64字），
+      // 不符的整筆略過，防止匯入惡意JSON（id裡塞');alert(1);//這類內容）觸發儲存型XSS。
+      // 本頁正常匯出的id格式（e_/demo_/bf_/cc_/pc_/p_ + 數字）皆符合此規則，不影響正常匯入。
+      let badIdCount = 0;
+      const validEntries = imp.entries.filter(e => {
+        const ok = e && typeof e === 'object' && _safeId(e.id);
+        if(!ok) badIdCount++;
+        return ok;
+      });
       // push ALL entries from JSON — user already cleared demo before importing
       const existIds = new Set(DB.entries.map(e => e.id));
-      const toAdd = imp.entries.filter(e => !existIds.has(e.id));
+      const toAdd = validEntries.filter(e => !existIds.has(e.id));
+      const dupCount = validEntries.length - toAdd.length;
       DB.entries = DB.entries.concat(toAdd);
-      if(imp.profile) DB.profile = {...DB.profile, ...imp.profile};
-      if(imp.customCats) DB.customCats = imp.customCats || [];
-      if(imp.catOverrides) DB.catOverrides = imp.catOverrides || {};
+      if(imp.profile){
+        const p = {...imp.profile};
+        if(Array.isArray(p.people)){
+          p.people = p.people.filter(pr => {
+            const ok = pr && typeof pr === 'object' && _safeId(pr.id) && typeof pr.name === 'string';
+            if(!ok) badIdCount++;
+            return ok;
+          });
+        }
+        if(Array.isArray(p.peopleCats)){
+          p.peopleCats = p.peopleCats.filter(c => {
+            const ok = c && typeof c === 'object' && _safeId(c.id) && typeof c.name === 'string';
+            if(!ok) badIdCount++;
+            return ok;
+          });
+        }
+        DB.profile = {...DB.profile, ...p};
+      }
+      if(imp.customCats){
+        DB.customCats = (Array.isArray(imp.customCats) ? imp.customCats : []).filter(c => {
+          const ok = c && typeof c === 'object' && _safeId(c.id);
+          if(!ok) badIdCount++;
+          return ok;
+        }).map(c => ({...c, customImg: c.customImg ? (_safeSrc(c.customImg) || null) : null}));
+      }
+      if(imp.catOverrides){
+        const safeOv = {};
+        Object.entries(imp.catOverrides || {}).forEach(([k, v]) => {
+          if(DEFAULT_CATS[k] && v && typeof v === 'object'){
+            safeOv[k] = {...v, customImg: v.customImg ? (_safeSrc(v.customImg) || null) : null};
+          } else {
+            badIdCount++;
+          }
+        });
+        DB.catOverrides = safeOv;
+      }
       persist();
       const after = DB.entries.length;
       showStatus(
         '✅ 匯入完成<br>' +
         '<span style="font-size:12px;">' +
         '新增 <b>' + toAdd.length + '</b> 筆記錄' +
-        (imp.entries.length - toAdd.length > 0 ? '，略過重複 ID ' + (imp.entries.length - toAdd.length) + ' 筆' : '') +
+        (dupCount > 0 ? '，略過重複 ID ' + dupCount + ' 筆' : '') +
+        (badIdCount > 0 ? '，略過 ' + badIdCount + ' 筆格式不符' : '') +
         '<br>目前共 <b>' + after + '</b> 筆記錄</span>', true
       );
       renderHome();
@@ -1590,7 +1638,7 @@ function clearAll(){if(!confirm('確定清除所有記錄？'))return;if(!confir
 
 // Cat Manager
 let ceKey=null,ceIsDefault=false,ceTempColor=CAT_COLORS[0];
-function renderCatManager(){const el=document.getElementById('cat-manager-list');if(!el)return;const all=getCats();el.innerHTML=Object.entries(all).map(([k,cat])=>`<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);cursor:pointer;" onclick="openCatEditor('${k}')"><span style="font-size:20px;">${_esc(cat.icon)}</span><div style="flex:1;"><div style="font-size:14px;font-weight:500;">${_esc(cat.label)}</div><div style="font-size:11px;color:var(--faint);">${(cat.sub||[]).length}個細項${DEFAULT_CATS[k]?' · 預設':''}</div></div><div style="width:16px;height:16px;border-radius:50%;background:${cat.color||'#888'};flex-shrink:0;"></div><span style="color:var(--faint);font-size:14px;">›</span></div>`).join('');}
+function renderCatManager(){const el=document.getElementById('cat-manager-list');if(!el)return;const all=getCats();el.innerHTML=Object.entries(all).map(([k,cat])=>`<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);cursor:pointer;" onclick="openCatEditor('${_escJsAttr(k)}')"><span style="font-size:20px;">${_esc(cat.icon)}</span><div style="flex:1;"><div style="font-size:14px;font-weight:500;">${_esc(cat.label)}</div><div style="font-size:11px;color:var(--faint);">${(cat.sub||[]).length}個細項${DEFAULT_CATS[k]?' · 預設':''}</div></div><div style="width:16px;height:16px;border-radius:50%;background:${cat.color||'#888'};flex-shrink:0;"></div><span style="color:var(--faint);font-size:14px;">›</span></div>`).join('');}
 function openCatEditor(k){ceKey=k;const all=getCats();const cat=all[k];ceIsDefault=!!DEFAULT_CATS[k];ceTempColor=cat.color||CAT_COLORS[0];document.getElementById('cat-editor-title').textContent='編輯：'+cat.label;document.getElementById('ce-icon').value=cat.icon||'';document.getElementById('ce-name').value=cat.label||'';const cd=document.getElementById('ce-colors');if(cd)cd.innerHTML=CAT_COLORS.map(col=>`<div class="color-dot${col===ceTempColor?' sel':''}" style="background:${col};" onclick="pickCEColor(this,'${col}')"></div>`).join('');const cp=document.getElementById('ce-color-picker');if(cp)cp.value=ceTempColor;renderCESubs(cat.sub||[]);document.getElementById('ce-delete-btn').style.display=ceIsDefault?'none':'inline-block';document.getElementById('cat-editor').style.display='block';document.getElementById('cat-editor').scrollIntoView({behavior:'smooth',block:'nearest'});}
 function renderCESubs(subs){const el=document.getElementById('ce-subs');el.innerHTML=subs.map((s,i)=>`<div style="display:flex;align-items:center;gap:6px;"><div style="flex:1;padding:7px 12px;background:var(--bg2);border-radius:10px;font-size:13px;">${_esc(s)}</div><button class="icon-btn" onclick="removeCESub(${i})">✕</button></div>`).join('');el._subs=subs;}
 function removeCESub(i){const el=document.getElementById('ce-subs');const subs=[...el._subs];subs.splice(i,1);renderCESubs(subs);}
@@ -1683,7 +1731,7 @@ function renderFactorBars(days){
     else                 { sentiment='中性'; sColor='#8A7848'; }
 
     const iconHtml = item.customImg
-      ? `<img src="${_esc(item.customImg)}" style="width:16px;height:16px;border-radius:3px;object-fit:cover;vertical-align:middle;"/>`
+      ? `<img src="${_safeSrc(item.customImg)}" style="width:16px;height:16px;border-radius:3px;object-fit:cover;vertical-align:middle;"/>`
       : _esc(item.icon);
 
     return `<div style="margin-bottom:16px;">
@@ -1771,7 +1819,7 @@ function openCustomEmojiPicker(targetInputId){
 }
 // render custom img icon in category chips
 function renderCatIcon(cat){
-  if(cat.customImg) return `<img src="${_esc(cat.customImg)}" style="width:18px;height:18px;object-fit:cover;border-radius:3px;vertical-align:middle;"/>`;
+  if(cat.customImg) return `<img src="${_safeSrc(cat.customImg)}" style="width:18px;height:18px;object-fit:cover;border-radius:3px;vertical-align:middle;"/>`;
   return _esc(cat.icon||'⭐');
 }
 
