@@ -936,15 +936,6 @@ function closeModal(){document.getElementById('modal-bg').style.display='none';}
 
 // ── PIE ──
 function computeFreq(entries){const freq={};const all=getCats();(entries||DB.entries).forEach(e=>(e.impactFactors||[]).forEach(f=>{if(!freq[f.category])freq[f.category]={count:0,subs:{},color:all[f.category]?.color||'#888',label:all[f.category]?.label||f.category};freq[f.category].count++;if(f.detail)freq[f.category].subs[f.detail]=(freq[f.category].subs[f.detail]||0)+1;}));return freq;}
-function buildPie(freq,state,activeKey){
-  if(pChart)pChart.destroy();
-  const ctx=document.getElementById('chart-pie').getContext('2d');
-  let labels,data,colors,hint;
-  if(state==='main'){labels=Object.values(freq).map(v=>v.label);data=Object.values(freq).map(v=>v.count);colors=Object.values(freq).map(v=>v.color);hint='點擊扇形查看細項';}
-  else{const subs=freq[activeKey].subs;labels=Object.keys(subs);data=Object.values(subs);const base=freq[activeKey].color;colors=labels.map((_,i)=>base+(Math.round(255*(0.35+i/Math.max(labels.length,1)*0.65)).toString(16).padStart(2,'0')));hint=`${_esc(freq[activeKey].label)} · <span style="cursor:pointer;text-decoration:underline;" onclick="buildPie(window._wfreq,'main',null);document.getElementById('pie-hint').innerHTML='點擊扇形查看細項'">← 返回</span>`;}
-  window._wfreq=freq;document.getElementById('pie-hint').innerHTML=hint;
-  pChart=new Chart(ctx,{type:'pie',data:{labels,datasets:[{data,backgroundColor:colors,borderColor:'rgba(252,251,250,.9)',borderWidth:2}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:11},color:'#7A7470',boxWidth:9,padding:9}},tooltip:{callbacks:{label:c=>`${c.label}：${c.raw}次`},backgroundColor:'rgba(252,251,250,.97)',bodyColor:'#242220',cornerRadius:10}},onClick:(_,items)=>{if(state==='main'&&items.length>0){const k=Object.keys(freq)[items[0].index];if(Object.keys(freq[k]?.subs||{}).length>0)buildPie(freq,'sub',k);}}}});
-}
 function buildWarn(){const s=[...DB.entries].sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp)).slice(0,3);if(s.length<3||!s.every(e=>e.moodScore<=3))return'';const hw=['Projector','Reflector'].includes(DB.profile.hdType);return`<div class="warn"><span style="font-size:20px;">⚠️</span><div><div style="font-size:13px;font-weight:600;color:#9A5048;margin-bottom:3px;">決策警告</div><div style="font-size:13px;line-height:1.6;">已連續 3 天心情低落。${hw?`根據人類圖類型（${DB.profile.hdType}），可能處於「非自己主題」，`:''}建議暫緩重大決策。🌿</div></div></div>`;}
 
 // ── TRACKER ──
@@ -968,12 +959,12 @@ function initTracker(dateOverride){
 function updateDateLabel(){
   const today=new Date();const isToday=entryDate.toDateString()===today.toDateString();
   const label=entryDate.toLocaleDateString('zh-TW',{year:'numeric',month:'long',day:'numeric',weekday:'long'});
-  document.getElementById('t-date').textContent=isToday?label:'📅 補記：'+label;
+  // 10-05：t-date 標題元素已於 06-22 改版（b632bf5）移除，原本這行直接拋錯，導致「再記一筆」失效、「這天已有N筆」提示永不顯示
+  const td=document.getElementById('t-date');if(td)td.textContent=isToday?label:'📅 補記：'+label;
   const ex=DB.entries.filter(e=>new Date(e.timestamp).toDateString()===entryDate.toDateString());
   const hint=document.getElementById('date-exist-hint');
-  if(ex.length){hint.style.display='block';hint.textContent=`這天已有 ${ex.length} 筆記錄。`;}else hint.style.display='none';
+  if(hint){if(ex.length){hint.style.display='block';hint.textContent=`這天已有 ${ex.length} 筆記錄。`;}else hint.style.display='none';}
 }
-function toggleDatePicker(){const w=document.getElementById('date-picker-wrap');w.style.display=w.style.display==='none'?'block':'none';}
 function onDateChange(){const v=document.getElementById('entry-date-input').value;if(!v)return;entryDate=new Date(v+'T12:00:00');updateDateLabel();}
 function updateSlider(){const s=+document.getElementById('slider').value,mi=moodInfo(s);document.getElementById('s-emoji').textContent=mi.emoji;document.getElementById('s-num').textContent=s;document.getElementById('s-num').style.color=mi.hex;document.getElementById('slider').style.background=`linear-gradient(to right,${mi.hex} ${(s-1)/9*100}%,#D6D3CE ${(s-1)/9*100}%)`;}
 document.getElementById('slider').addEventListener('input',updateSlider);
