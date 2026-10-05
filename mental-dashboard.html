@@ -1060,7 +1060,10 @@ function saveEntry(){
 function resetTracker(dateStr){selEmotions=[];selFactors=[];selCategories=[];activeCat=null;newCatColor=CAT_COLORS[0];document.getElementById('slider').value=5;document.getElementById('notes').value='';updateSlider();initTracker(dateStr||null);goStep(0);}
 function softReset(){
   document.getElementById('notes').value='';
-  entryDate=new Date();updateDateLabel();
+  entryDate=new Date();
+  // 10-05：日期欄位也要同步回今天（06-22 加入日期欄位後漏同步，內部日期與畫面顯示會不一致）
+  { const di=document.getElementById('entry-date-input'); if(di){ const t=entryDate; di.value=t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0'); } }
+  updateDateLabel();
   // Re-render emotion chips preserving current selections
   renderEmotionChips();
   // Re-render category row (preserves activeCat highlight via styleBtn)
