@@ -546,6 +546,52 @@ function _escJsAttr(s){return String(s==null?'':s).replace(/\\/g,'\\\\').replace
 function _safeSrc(u){if(u==null)return'';const s=String(u).trim();if(/^https?:\/\//i.test(s))return _esc(s);if(/^data:image\/(png|jpeg|jpg|gif|webp);base64,/i.test(s))return _esc(s);return'';}
 // _safeId()：驗證id/key類欄位格式（匯入清洗用），只允許英數字/底線/連字號，長度1-64
 function _safeId(s){return typeof s==='string'&&/^[A-Za-z0-9_-]{1,64}$/.test(s);}
+// 10-05 XSS：style 用的顏色一律格式白名單（#rgb/#rrggbb/#rrggbbaa），不符改用預設色
+function _colorOk(c){return typeof c==='string'&&/^#[0-9a-fA-F]{3,8}$/.test(c);}
+function _safeColor(c,fb){return _colorOk(c)?c:(fb||'#888');}
+// 圖片來源合法性檢查（不做 escape，供 sanitizeDB 判斷；顯示端仍用 _safeSrc）
+function _srcOk(u){if(typeof u!=='string')return false;const s=u.trim();return /^https?:\/\//i.test(s)||/^data:image\/(png|jpeg|jpg|gif|webp);base64,/i.test(s);}
+// 10-05 XSS：DB 清洗。只過濾或修正不合法的值，合法資料原封不動（不 mutate 輸入，回傳新物件）。
+// loadDB（含 Gist/autosync 還原繞過 importData 寫進 wellness_v5 的路徑）與 importData 共用。
+// stats.bad 累計被略過/修正的筆數。
+function sanitizeDB(db,stats){
+  const st=stats||{bad:0};
+  const isObj=o=>o&&typeof o==='object'&&!Array.isArray(o);
+  if(!isObj(db))return freshDB();
+  const out={...db};
+  if(Array.isArray(out.entries)){
+    out.entries=out.entries.filter(e=>{const ok=isObj(e)&&_safeId(e.id);if(!ok)st.bad++;return ok;});
+  }else if('entries' in out){out.entries=[];}
+  const cleanCat=c=>{
+    const r={...c};
+    if('customImg' in r&&r.customImg&&!_srcOk(r.customImg)){r.customImg=null;st.bad++;}
+    if('color' in r&&r.color!==undefined&&!_colorOk(r.color)){r.color=CAT_COLORS[0];st.bad++;}
+    return r;
+  };
+  if(Array.isArray(out.customCats)){
+    out.customCats=out.customCats.filter(c=>{const ok=isObj(c)&&_safeId(c.id);if(!ok)st.bad++;return ok;}).map(cleanCat);
+  }else if('customCats' in out){out.customCats=[];}
+  if(isObj(out.catOverrides)){
+    const ov={};
+    Object.entries(out.catOverrides).forEach(([k,v])=>{if(DEFAULT_CATS[k]&&isObj(v))ov[k]=cleanCat(v);else st.bad++;});
+    out.catOverrides=ov;
+  }else if('catOverrides' in out){out.catOverrides={};}
+  if('profile' in out){
+    if(isObj(out.profile)){
+      const p={...out.profile};
+      ['hdType','hdProfile','hdDefinition','hdAuthority','hdStrategy','hdNotSelf','hdCross','hdParseResult'].forEach(k=>{
+        if(k in p&&typeof p[k]!=='string'){p[k]=(p[k]==null||typeof p[k]==='object')?'':String(p[k]);st.bad++;}
+      });
+      ['people','peopleCats'].forEach(k=>{
+        if(Array.isArray(p[k])){
+          p[k]=p[k].filter(x=>{const ok=isObj(x)&&_safeId(x.id)&&typeof x.name==='string';if(!ok)st.bad++;return ok;});
+        }else if(k in p){p[k]=[];}
+      });
+      out.profile=p;
+    }else{out.profile=freshDB().profile;st.bad++;}
+  }
+  return out;
+}
 function toggleCard(id){
   const h=document.querySelector('[data-card="'+id+'"]');
   const b=document.getElementById(id+'-bd');
@@ -680,7 +726,7 @@ const HD_CENTERS=[
 
 // ── DATA ──
 let DB=loadDB();
-function loadDB(){try{return JSON.parse(localStorage.getItem(KEY))||freshDB();}catch{return freshDB();}}
+function loadDB(){try{return sanitizeDB(JSON.parse(localStorage.getItem(KEY))||freshDB());}catch{return freshDB();}}
 function freshDB(){return{profile:{hdType:'',hdProfile:'',hdDefinition:'',hdAuthority:'',hdStrategy:'',hdNotSelf:'',hdCross:'',hdParseResult:'',people:[],peopleCats:[]},entries:[],customCats:[],catOverrides:{}};}
 function persist(){localStorage.setItem(KEY,JSON.stringify(DB));}
 if(!DB.profile.people)DB.profile.people=[];
@@ -688,7 +734,7 @@ if(!DB.profile.peopleCats)DB.profile.peopleCats=[];
 if(!DB.customCats)DB.customCats=[];
 var _pcatCollapsed={};
 if(!DB.catOverrides)DB.catOverrides={};
-function getCats(){const b={};Object.entries(DEFAULT_CATS).forEach(([k,v])=>{b[k]={...v,...(DB.catOverrides[k]||{})};});DB.customCats.forEach(c=>b[c.id]=c);return b;}
+function getCats(){const b={};Object.entries(DEFAULT_CATS).forEach(([k,v])=>{b[k]={...v,...(DB.catOverrides[k]||{})};});DB.customCats.forEach(c=>b[c.id]=c);Object.keys(b).forEach(k=>{if(b[k].color!==undefined&&!_colorOk(b[k].color))b[k]={...b[k],color:CAT_COLORS[0]};});return b;}
 migrateCategorySplit();
 
 // seed
@@ -1091,7 +1137,7 @@ function renderInsights(){
   const freq=computeFreq(all);const cats=getCats();
   const impH=Object.entries(freq).sort(([,a],[,b])=>b.count-a.count).map(([cat,val])=>{const pct=Math.min(+(val.count/all.length*100).toFixed(0),100);const uniqueDetails=[...new Set(all.flatMap(e=>(e.impactFactors||[]).filter(f=>f.category===cat&&f.detail).map(f=>f.detail)))];const catEsc=_escJsAttr(cat);const subs=uniqueDetails.map(d=>{const dEsc=_escJsAttr(d);return`<span style="font-size:11px;color:var(--muted);background:var(--bg3);border-radius:100px;padding:2px 10px;cursor:pointer;" onclick="showFactorHistory('${catEsc}','${dEsc}')">${_esc(d)}</span>`;}).join('');return`<div style="margin-bottom:13px;"><div class="sb mb8"><span style="font-size:13px;">${_esc(cats[cat]?.icon||'')} ${_esc(val.label)}</span><span style="font-size:12px;color:var(--muted);">${val.count}次</span></div><div class="bar-bg"><div class="bar-fill" style="width:${pct}%;background:${val.color};"></div></div>${subs?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;">${subs}</div>`:''}</div>`;}).join('');
   const sentH=buildFactorSentiment(all);
-  body.innerHTML=`<div class="glass card-p mb12"><div class="sec-title">🧭 決策狀態</div>${[['近3天均分',l3avg+'分'],['建議決策',allLow?'⚠️ 暫緩':'✅ 可行'],['人類圖策略',DB.profile.hdStrategy||'未設定'],['內在權威',DB.profile.hdAuthority||'未設定']].map(([l,v])=>`<div class="sb" style="padding:9px 0;border-bottom:1px solid var(--border);"><span style="font-size:13px;color:var(--muted);">${l}</span><span style="font-size:13px;font-weight:500;">${v}</span></div>`).join('')}</div>
+  body.innerHTML=`<div class="glass card-p mb12"><div class="sec-title">🧭 決策狀態</div>${[['近3天均分',l3avg+'分'],['建議決策',allLow?'⚠️ 暫緩':'✅ 可行'],['人類圖策略',DB.profile.hdStrategy||'未設定'],['內在權威',DB.profile.hdAuthority||'未設定']].map(([l,v])=>`<div class="sb" style="padding:9px 0;border-bottom:1px solid var(--border);"><span style="font-size:13px;color:var(--muted);">${l}</span><span style="font-size:13px;font-weight:500;">${_esc(v)}</span></div>`).join('')}</div>
   <div class="two-col"><div class="glass" style="padding:15px;"><div style="font-size:11px;color:var(--muted);margin-bottom:6px;">🏆 Best Day</div><div style="font-size:26px;">${moodInfo(best.moodScore).emoji}</div><div style="font-size:19px;font-weight:700;color:#588068;">${best.moodScore}/10</div><div style="font-size:11px;color:var(--muted);margin-top:2px;">${new Date(best.timestamp).toLocaleDateString('zh-TW',{month:'numeric',day:'numeric'})}</div><div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:6px;">${(best.impactFactors||[]).map(f=>{const col=cats[f.category]?.color||'#888';return`<span style="font-size:10px;padding:2px 7px;border-radius:100px;background:${col}18;color:${col};">${_esc(f.detail)}</span>`;}).join('')}</div></div><div class="glass" style="padding:15px;"><div style="font-size:11px;color:var(--muted);margin-bottom:6px;">💤 Lowest Day</div><div style="font-size:26px;">${moodInfo(worst.moodScore).emoji}</div><div style="font-size:19px;font-weight:700;color:#A07068;">${worst.moodScore}/10</div><div style="font-size:11px;color:var(--muted);margin-top:2px;">${new Date(worst.timestamp).toLocaleDateString('zh-TW',{month:'numeric',day:'numeric'})}</div><div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:6px;">${(worst.impactFactors||[]).map(f=>{const col=cats[f.category]?.color||'#888';return`<span style="font-size:10px;padding:2px 7px;border-radius:100px;background:${col}18;color:${col};">${_esc(f.detail)}</span>`;}).join('')}</div></div></div>
   <div class="glass card-p mb12"><div class="sec-title">🎯 影響因子排行</div>${impH||'<div style="font-size:13px;color:var(--muted);">尚無資料</div>'}</div>
   <div class="glass card-p mb12"><div class="sec-title">🔍 Factor Sentiment</div><div style="font-size:12px;color:var(--muted);margin-bottom:12px;">各因子細項對你情緒的影響傾向</div>${sentH}</div>
@@ -1558,56 +1604,22 @@ function importData(input){
         showStatus('❌ 格式不正確：找不到 entries 資料', false); return;
       }
       const before = DB.entries.length;
-      // 第二輪XSS修補：匯入清洗 — 所有id/key類欄位必須符合安全格式（英數字/底線/連字號，1-64字），
-      // 不符的整筆略過，防止匯入惡意JSON（id裡塞');alert(1);//這類內容）觸發儲存型XSS。
-      // 本頁正常匯出的id格式（e_/demo_/bf_/cc_/pc_/p_ + 數字）皆符合此規則，不影響正常匯入。
-      let badIdCount = 0;
-      const validEntries = imp.entries.filter(e => {
-        const ok = e && typeof e === 'object' && _safeId(e.id);
-        if(!ok) badIdCount++;
-        return ok;
-      });
+      // 匯入清洗統一走 sanitizeDB（與 loadDB 共用）；正常匯出檔的資料不受影響。
+      const st = {bad: 0};
+      const part = {entries: imp.entries};
+      if(imp.profile && typeof imp.profile === 'object' && !Array.isArray(imp.profile)) part.profile = imp.profile;
+      if(imp.customCats) part.customCats = imp.customCats;
+      if(imp.catOverrides) part.catOverrides = imp.catOverrides;
+      const clean = sanitizeDB(part, st);
+      const badIdCount = st.bad;
       // push ALL entries from JSON — user already cleared demo before importing
       const existIds = new Set(DB.entries.map(e => e.id));
-      const toAdd = validEntries.filter(e => !existIds.has(e.id));
-      const dupCount = validEntries.length - toAdd.length;
+      const toAdd = clean.entries.filter(e => !existIds.has(e.id));
+      const dupCount = clean.entries.length - toAdd.length;
       DB.entries = DB.entries.concat(toAdd);
-      if(imp.profile){
-        const p = {...imp.profile};
-        if(Array.isArray(p.people)){
-          p.people = p.people.filter(pr => {
-            const ok = pr && typeof pr === 'object' && _safeId(pr.id) && typeof pr.name === 'string';
-            if(!ok) badIdCount++;
-            return ok;
-          });
-        }
-        if(Array.isArray(p.peopleCats)){
-          p.peopleCats = p.peopleCats.filter(c => {
-            const ok = c && typeof c === 'object' && _safeId(c.id) && typeof c.name === 'string';
-            if(!ok) badIdCount++;
-            return ok;
-          });
-        }
-        DB.profile = {...DB.profile, ...p};
-      }
-      if(imp.customCats){
-        DB.customCats = (Array.isArray(imp.customCats) ? imp.customCats : []).filter(c => {
-          const ok = c && typeof c === 'object' && _safeId(c.id);
-          if(!ok) badIdCount++;
-          return ok;
-        }).map(c => ({...c, customImg: c.customImg ? (_safeSrc(c.customImg) || null) : null}));
-      }
-      if(imp.catOverrides){
-        const safeOv = {};
-        Object.entries(imp.catOverrides || {}).forEach(([k, v]) => {
-          if(DEFAULT_CATS[k] && v && typeof v === 'object'){
-            safeOv[k] = {...v, customImg: v.customImg ? (_safeSrc(v.customImg) || null) : null};
-          } else {
-            badIdCount++;
-          }
-        });
-        DB.catOverrides = safeOv;
-      }
+      if(clean.profile){ DB.profile = {...DB.profile, ...clean.profile}; }
+      if(imp.customCats){ DB.customCats = clean.customCats || []; }
+      if(imp.catOverrides){ DB.catOverrides = clean.catOverrides || {}; }
       persist();
       const after = DB.entries.length;
       showStatus(
@@ -1620,7 +1632,7 @@ function importData(input){
       );
       renderHome();
     } catch(err){
-      showStatus('❌ 讀取失敗：' + err.message, false);
+      showStatus('❌ 讀取失敗：' + _esc(err.message), false);
     }
   };
   reader.onerror = function(){ showStatus('❌ 檔案讀取失敗，請重試', false); };
